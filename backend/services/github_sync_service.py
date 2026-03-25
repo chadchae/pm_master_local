@@ -122,11 +122,24 @@ def test_connection(token: str, owner: str, repo: str) -> dict:
 
 # ── Push ──────────────────────────────────────────────────────────────────────
 
+def _is_empty_json(path: Path) -> bool:
+    """Return True if the file contains an empty JSON array or object."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data == [] or data == {}
+    except Exception:
+        return False
+
+
 def _push_file(local_path: Path, remote_path: str, cfg: dict) -> dict:
     """Push a single local file to GitHub."""
     owner, repo, token, branch = cfg["repo_owner"], cfg["repo_name"], cfg["token"], cfg["branch"]
     if not local_path.exists():
         return {"path": remote_path, "status": "skipped", "reason": "local file missing"}
+
+    # Skip empty JSON files to prevent overwriting remote data with blank local state
+    if local_path.suffix == ".json" and _is_empty_json(local_path):
+        return {"path": remote_path, "status": "skipped", "reason": "local file is empty"}
 
     content = local_path.read_bytes()
     encoded = base64.b64encode(content).decode("utf-8")
