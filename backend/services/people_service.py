@@ -350,8 +350,34 @@ def delete_person(person_id: str) -> dict[str, Any] | None:
             # Remove from all projects' related_people
             _remove_person_from_all_projects(person_name, person_alias)
 
+            # Remove from other people's connections
+            _remove_person_from_all_connections(person_id)
+
             return person
     return None
+
+
+def _remove_person_from_all_connections(person_id: str) -> None:
+    """Remove a deleted person's ID from all other people's connections."""
+    for other in list_people():
+        connections = other.get("connections", [])
+        if person_id in connections:
+            other["connections"] = [c for c in connections if c != person_id]
+            filepath = Path(other.get("_filepath", ""))
+            if filepath.exists():
+                _write_person_file(other, filepath)
+
+
+def remove_project_from_all_people(project_label: str, project_name: str = "") -> None:
+    """Remove a deleted project from all people's projects list."""
+    for person in list_people():
+        projects = person.get("projects", [])
+        new_projects = [p for p in projects if p != project_label and p != project_name]
+        if len(new_projects) != len(projects):
+            person["projects"] = new_projects
+            filepath = Path(person.get("_filepath", ""))
+            if filepath.exists():
+                _write_person_file(person, filepath)
 
 
 def _remove_person_from_all_projects(person_name: str, person_alias: str = "") -> None:

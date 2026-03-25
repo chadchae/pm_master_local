@@ -487,6 +487,25 @@ def sync_related_projects_rename(old_name: str, new_name: str) -> int:
     return count
 
 
+def _remove_project_from_all_related(project_name: str, project_label: str = "") -> None:
+    """Remove a deleted project from all other projects' 연관프로젝트 field."""
+    for stage_folder in STAGE_FOLDERS.values():
+        stage_path = PROJECTS_ROOT / stage_folder
+        if not stage_path.is_dir():
+            continue
+        for item in stage_path.iterdir():
+            if not item.is_dir() or item.name.startswith("."):
+                continue
+            meta = _read_project_yaml(item)
+            related = meta.get("연관프로젝트", "")
+            if not related:
+                continue
+            names = [n.strip() for n in related.split(",") if n.strip()]
+            new_names = [n for n in names if n != project_name and n != project_label]
+            if len(new_names) != len(names):
+                update_metadata(item.name, {"연관프로젝트": ", ".join(new_names)})
+
+
 def _build_yaml_frontmatter(metadata: dict[str, Any]) -> str:
     """Build YAML frontmatter string from metadata dict."""
     if not metadata:
@@ -947,11 +966,23 @@ def delete_project(project_name: str) -> dict[str, Any]:
     if not str(resolved).startswith(str(discarded_root)):
         return {"success": False, "message": "Invalid project path"}
 
+    # Read project label before deletion to clean up people references
+    project_meta = _read_project_yaml(project_path)
+    project_label = project_meta.get("label", project_name)
+
     try:
         shutil.rmtree(str(project_path))
-        return {"success": True, "message": f"Permanently deleted {project_name}"}
     except OSError as e:
         return {"success": False, "message": f"Failed to delete: {e}"}
+
+    # Remove project from all people's projects list
+    from services.people_service import remove_project_from_all_people
+    remove_project_from_all_people(project_label, project_name)
+
+    # Remove project from other projects' 연관프로젝트
+    _remove_project_from_all_related(project_name, project_label)
+
+    return {"success": True, "message": f"Permanently deleted {project_name}"}
 
 
 def create_project(
