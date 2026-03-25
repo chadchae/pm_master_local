@@ -9,12 +9,12 @@ try {
 } catch { /* ignore */ }
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: __dirname,
+  },
   reactStrictMode: false,
   env: {
     NEXT_PUBLIC_VERSION: gitVersion,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   experimental: {
     proxyTimeout: 300_000,
