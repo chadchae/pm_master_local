@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { apiFetch } from "@/lib/api";
 
 // --- Date utility functions ---
 
@@ -79,45 +80,58 @@ interface FocusTasksContextType {
   isMonthlyFocus: (id: string) => boolean;
 }
 
-const STORAGE_KEY = "pm_focus_tasks";
-
-function loadFromStorage(): FocusTasksState {
-  if (typeof window === "undefined") return { weekly: [], monthly: [] };
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { weekly: [], monthly: [] };
-    const parsed = JSON.parse(raw);
-    // Handle legacy format (weekly was single item or null)
-    const weekly = Array.isArray(parsed.weekly)
-      ? parsed.weekly
-      : parsed.weekly
-      ? [parsed.weekly]
-      : [];
-    return {
-      weekly,
-      monthly: Array.isArray(parsed.monthly) ? parsed.monthly : [],
-    };
-  } catch {
-    return { weekly: [], monthly: [] };
-  }
-}
-
-function saveToStorage(state: FocusTasksState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
+const LEGACY_STORAGE_KEY = "pm_focus_tasks";
 
 const FocusTasksContext = createContext<FocusTasksContextType | null>(null);
 
 export function FocusTasksProvider({ children }: { children: ReactNode }) {
   const [focusTasks, setFocusTasks] = useState<FocusTasksState>({ weekly: [], monthly: [] });
 
-  useEffect(() => {
-    setFocusTasks(loadFromStorage());
+  const persistToServer = useCallback(async (next: FocusTasksState) => {
+    setFocusTasks(next);
+    try {
+      await apiFetch("/api/focus-tasks", {
+        method: "PUT",
+        body: JSON.stringify(next),
+      });
+    } catch {
+      // silent - local state is already updated
+    }
   }, []);
 
-  const persist = useCallback((next: FocusTasksState) => {
-    setFocusTasks(next);
-    saveToStorage(next);
+  useEffect(() => {
+    apiFetch<FocusTasksState>("/api/focus-tasks")
+      .then((data) => {
+        const serverEmpty = (!data.weekly || data.weekly.length === 0) && (!data.monthly || data.monthly.length === 0);
+        if (serverEmpty) {
+          // One-time migration from localStorage
+          try {
+            const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              const weekly = Array.isArray(parsed.weekly)
+                ? parsed.weekly
+                : parsed.weekly ? [parsed.weekly] : [];
+              const monthly = Array.isArray(parsed.monthly) ? parsed.monthly : [];
+              if (weekly.length > 0 || monthly.length > 0) {
+                const migrated = { weekly, monthly };
+                apiFetch("/api/focus-tasks", {
+                  method: "PUT",
+                  body: JSON.stringify(migrated),
+                }).then(() => {
+                  setFocusTasks(migrated);
+                  localStorage.removeItem(LEGACY_STORAGE_KEY);
+                });
+                return;
+              }
+            }
+          } catch {
+            // ignore migration errors
+          }
+        }
+        setFocusTasks({ weekly: data.weekly || [], monthly: data.monthly || [] });
+      })
+      .catch(() => {});
   }, []);
 
   const toggleWeeklyFocus = useCallback(
@@ -127,16 +141,16 @@ export function FocusTasksProvider({ children }: { children: ReactNode }) {
       if (idx >= 0) {
         const next = [...current.weekly];
         next.splice(idx, 1);
-        persist({ ...current, weekly: next });
+        persistToServer({ ...current, weekly: next });
         return { added: false, blocked: false };
       }
       if (current.weekly.length >= 3) {
         return { added: false, blocked: true };
       }
-      persist({ ...current, weekly: [...current.weekly, { id, title, dueDate }] });
+      persistToServer({ ...current, weekly: [...current.weekly, { id, title, dueDate }] });
       return { added: true, blocked: false };
     },
-    [focusTasks, persist]
+    [focusTasks, persistToServer]
   );
 
   const toggleMonthlyFocus = useCallback(
@@ -146,16 +160,16 @@ export function FocusTasksProvider({ children }: { children: ReactNode }) {
       if (idx >= 0) {
         const next = [...current.monthly];
         next.splice(idx, 1);
-        persist({ ...current, monthly: next });
+        persistToServer({ ...current, monthly: next });
         return { added: false, blocked: false };
       }
       if (current.monthly.length >= 3) {
         return { added: false, blocked: true };
       }
-      persist({ ...current, monthly: [...current.monthly, { id, title, dueDate }] });
+      persistToServer({ ...current, monthly: [...current.monthly, { id, title, dueDate }] });
       return { added: true, blocked: false };
     },
-    [focusTasks, persist]
+    [focusTasks, persistToServer]
   );
 
   const isWeeklyFocus = useCallback(

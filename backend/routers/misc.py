@@ -246,6 +246,42 @@ def delete_major_schedule(schedule_id: str):
     return {"schedules": schedules}
 
 
+# --- Focus tasks ---
+
+_FOCUS_TASKS_FILE = Path(__file__).parent.parent / "data" / "focus_tasks.json"
+
+
+def _load_focus_tasks() -> dict:
+    if not _FOCUS_TASKS_FILE.exists():
+        return {"weekly": [], "monthly": []}
+    try:
+        data = json.loads(_FOCUS_TASKS_FILE.read_text(encoding="utf-8"))
+        return {"weekly": data.get("weekly", []), "monthly": data.get("monthly", [])}
+    except Exception:
+        return {"weekly": [], "monthly": []}
+
+
+def _save_focus_tasks(data: dict) -> None:
+    _FOCUS_TASKS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class FocusTasksRequest(BaseModel):
+    weekly: list[dict] = []
+    monthly: list[dict] = []
+
+
+@router.get("/focus-tasks")
+def get_focus_tasks():
+    return _load_focus_tasks()
+
+
+@router.put("/focus-tasks")
+def update_focus_tasks(body: FocusTasksRequest):
+    data = {"weekly": body.weekly[:3], "monthly": body.monthly[:3]}
+    _save_focus_tasks(data)
+    return data
+
+
 # --- Discussion timeline endpoint ---
 
 @router.get("/discussions/timeline")
