@@ -3,6 +3,7 @@
 import base64
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -163,19 +164,12 @@ def push_all() -> dict:
                        "Set repo_name to 'pm_master_sync' in Settings.",
         }
 
-    results = []
-    errors = 0
-
-    # Top-level files
+    # Collect all (local_path, remote_path) pairs
+    tasks = []
     for fname in SYNC_TOP_LEVEL:
         local = DATA_DIR / fname
         if local.exists():
-            r = _push_file(local, f"data/{fname}", cfg)
-            results.append(r)
-            if r["status"] == "error":
-                errors += 1
-
-    # Subdirectories
+            tasks.append((local, f"data/{fname}"))
     for subdir in SYNC_SUBDIRS:
         local_dir = DATA_DIR / subdir
         if not local_dir.exists():
@@ -183,10 +177,16 @@ def push_all() -> dict:
         for f in sorted(local_dir.glob("*.json")):
             if f.name in SKIP_FILES:
                 continue
-            r = _push_file(f, f"data/{subdir}/{f.name}", cfg)
-            results.append(r)
-            if r["status"] == "error":
-                errors += 1
+            tasks.append((f, f"data/{subdir}/{f.name}"))
+
+    # Push all files in parallel (max 8 concurrent)
+    results = []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_push_file, local, remote, cfg): remote for local, remote in tasks}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    errors = sum(1 for r in results if r["status"] == "error")
 
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     cfg["last_synced_at"] = now

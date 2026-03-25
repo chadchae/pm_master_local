@@ -392,30 +392,36 @@ export default function SettingsPage() {
                 <div className="flex gap-2">
                   {/* Push */}
                   <button onClick={() => executePush(false)} disabled={pushing || !syncEnabled}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
+                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
                       pushSuccess
                         ? "bg-green-700/50 text-green-300 border border-green-600/50"
                         : currentRole === "laptop"
                         ? "bg-yellow-800/40 hover:bg-yellow-700/40 text-yellow-300 border border-yellow-700/50"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-200"
                     }`}>
-                    {pushing ? <Loader2 size={14} className="animate-spin" /> : pushSuccess ? <CheckCircle size={14} /> : <Upload size={14} />}
-                    {pushSuccess ? "Pushed!" : "Push to GitHub"}
-                    {!pushSuccess && currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
+                    <span className="flex items-center gap-1.5">
+                      {pushing ? <Loader2 size={14} className="animate-spin" /> : pushSuccess ? <CheckCircle size={14} /> : <Upload size={14} />}
+                      {pushSuccess ? "Pushed!" : "Push to GitHub"}
+                      {!pushSuccess && currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
+                    </span>
+                    {pushing && <span className="text-[10px] opacity-60">uploading files...</span>}
                   </button>
 
                   {/* Pull */}
                   <button onClick={() => executePull(false)} disabled={pulling || !syncEnabled}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
+                    className={`flex-1 flex flex-col items-center justify-center gap-0.5 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
                       pullSuccess
                         ? "bg-green-700/50 text-green-300 border border-green-600/50"
                         : currentRole === "main"
                         ? "bg-yellow-800/40 hover:bg-yellow-700/40 text-yellow-300 border border-yellow-700/50"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-200"
                     }`}>
-                    {pulling ? <Loader2 size={14} className="animate-spin" /> : pullSuccess ? <CheckCircle size={14} /> : <Download size={14} />}
-                    {pullSuccess ? "Pulled!" : "Pull from GitHub"}
-                    {!pullSuccess && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
+                    <span className="flex items-center gap-1.5">
+                      {pulling ? <Loader2 size={14} className="animate-spin" /> : pullSuccess ? <CheckCircle size={14} /> : <Download size={14} />}
+                      {pullSuccess ? "Pulled!" : "Pull from GitHub"}
+                      {!pullSuccess && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
+                    </span>
+                    {pulling && <span className="text-[10px] opacity-60">downloading files...</span>}
                   </button>
                 </div>
 
