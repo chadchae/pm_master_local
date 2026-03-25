@@ -12,6 +12,10 @@ import httpx
 DATA_DIR = Path(__file__).parent.parent / "data"
 CONFIG_FILE = DATA_DIR / "github_sync_config.json"
 
+# Project memo directory (~/Projects/_notes/_project_memo/)
+PROJECTS_ROOT = Path.home() / "Projects"
+MEMO_DIR = PROJECTS_ROOT / "_notes" / "_project_memo"
+
 # Files that must never be synced (sensitive or machine-local)
 SKIP_FILES = {"auth.json", "tokens.json", "github_sync_config.json"}
 
@@ -178,6 +182,10 @@ def push_all() -> dict:
             if f.name in SKIP_FILES:
                 continue
             tasks.append((f, f"data/{subdir}/{f.name}"))
+    # Project memos
+    if MEMO_DIR.exists():
+        for f in sorted(MEMO_DIR.glob("*.md")):
+            tasks.append((f, f"memos/{f.name}"))
 
     # Push all files in parallel (max 8 concurrent)
     results = []
@@ -256,6 +264,16 @@ def pull_all() -> dict:
             results.append(r)
             if r["status"] == "error":
                 errors += 1
+
+    # Project memos
+    remote_memos = _list_remote_dir(owner, repo, "memos", token, branch)
+    for rf in remote_memos:
+        if not rf["name"].endswith(".md"):
+            continue
+        r = _pull_file(f"memos/{rf['name']}", MEMO_DIR / rf["name"], cfg)
+        results.append(r)
+        if r["status"] == "error":
+            errors += 1
 
     now = time.strftime("%Y-%m-%d %H:%M:%S")
     cfg["last_synced_at"] = now
