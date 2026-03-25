@@ -22,6 +22,9 @@ SYNC_TOP_LEVEL = ["people.json", "plans.json", "card_order.json"]
 
 GITHUB_API = "https://api.github.com"
 
+# Repo names that contain app code — syncing data to/from these would be wrong
+CODE_REPOS = {"pm_master_local", "pm_master_online", "pm-master-local", "pm-master-online"}
+
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -152,6 +155,14 @@ def push_all() -> dict:
     if not cfg.get("enabled") or not cfg.get("token"):
         return {"ok": False, "message": "Sync not configured or disabled."}
 
+    repo_name = cfg.get("repo_name", "")
+    if repo_name in CODE_REPOS:
+        return {
+            "ok": False,
+            "message": f"Safety check failed: repo_name '{repo_name}' looks like a code repo, not a data sync repo. "
+                       "Set repo_name to 'pm_master_sync' in Settings.",
+        }
+
     results = []
     errors = 0
 
@@ -214,6 +225,14 @@ def pull_all() -> dict:
     cfg = load_config()
     if not cfg.get("enabled") or not cfg.get("token"):
         return {"ok": False, "message": "Sync not configured or disabled."}
+
+    repo_name = cfg.get("repo_name", "")
+    if repo_name in CODE_REPOS:
+        return {
+            "ok": False,
+            "message": f"Safety check failed: repo_name '{repo_name}' looks like a code repo, not a data sync repo. "
+                       "Set repo_name to 'pm_master_sync' in Settings.",
+        }
 
     owner, repo, token, branch = cfg["repo_owner"], cfg["repo_name"], cfg["token"], cfg["branch"]
     results = []

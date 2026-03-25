@@ -68,6 +68,11 @@ async def on_startup():
     """Pull latest data from GitHub on app start if sync is enabled."""
     cfg = github_sync_service.load_config()
     if cfg.get("enabled") and cfg.get("auto_pull_on_start") and cfg.get("token"):
+        repo_name = cfg.get("repo_name", "")
+        if repo_name in github_sync_service.CODE_REPOS:
+            print(f"[sync] Skipping auto-pull: repo_name '{repo_name}' looks like a code repo. "
+                  "Update repo_name to 'pm_master_sync' in Settings.")
+            return
         loop = asyncio.get_event_loop()
         loop.run_in_executor(None, github_sync_service.pull_all)
 

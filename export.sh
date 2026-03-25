@@ -89,9 +89,13 @@ echo -e "  ${GREEN}✓ App code copied${NC}"
 
 echo -e "${BLUE}[3/4] Exporting data...${NC}"
 
-# Backend DB (JSON) — always included
-cp -r "$SCRIPT_DIR/backend/data/." "$PACKAGE_DIR/data/backend/"
-echo -e "  ${GREEN}✓ Backend DB (JSON) included${NC}"
+# Backend DB (JSON) — always included (exclude machine-local/sensitive files)
+rsync -a \
+  --exclude="auth.json" \
+  --exclude="tokens.json" \
+  --exclude="github_sync_config.json" \
+  "$SCRIPT_DIR/backend/data/" "$PACKAGE_DIR/data/backend/"
+echo -e "  ${GREEN}✓ Backend DB (JSON) included (auth/tokens/sync config excluded)${NC}"
 
 if [ "$MODE" = "app-only" ]; then
   echo -e "  ${YELLOW}→ app-only mode: ~/Projects 제외${NC}"

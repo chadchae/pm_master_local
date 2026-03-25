@@ -145,12 +145,65 @@ else
   fi
 fi
 
-# ── Make scripts executable ───────────────────────────────────────────────────
+# ── Git setup (for upgrade.sh to work) ───────────────────────────────────────
 
-echo -e "${BLUE}[5/5] Finalizing...${NC}"
+echo -e "${BLUE}[5/6] Setting up git for upgrades...${NC}"
 cd "$SCRIPT_DIR"
-chmod +x run.sh setup.sh install.sh export.sh 2>/dev/null || true
+if [ ! -d ".git" ]; then
+  git init -q
+  git remote add origin "https://github.com/chadchae/pm_master_local.git"
+  git add -A
+  git commit -q -m "install: initial commit" 2>/dev/null || true
+  echo -e "  ${GREEN}✓ Git initialized (remote: pm_master_local)${NC}"
+  echo -e "  ${YELLOW}  Run ./upgrade.sh any time to pull latest code from GitHub${NC}"
+else
+  echo -e "  ${YELLOW}⚠ .git already exists — skipping git init${NC}"
+fi
+
+# ── Projects root dirs (Notes/Learning/Guidelines) ────────────────────────────
+
+echo -e "${BLUE}[6/6] Finalizing...${NC}"
+cd "$SCRIPT_DIR"
+chmod +x run.sh setup.sh install.sh export.sh upgrade.sh 2>/dev/null || true
 echo -e "  ${GREEN}✓ Scripts are executable${NC}"
+
+CREATED_DIRS=0
+for dir in _notes _learning _guideline _issues_common; do
+  if [ ! -d "$PROJECTS_ROOT/$dir" ]; then
+    mkdir -p "$PROJECTS_ROOT/$dir"
+    CREATED_DIRS=$((CREATED_DIRS + 1))
+  fi
+done
+if [ "$CREATED_DIRS" -gt 0 ]; then
+  echo -e "  ${GREEN}✓ Created $CREATED_DIRS missing project dirs in $PROJECTS_ROOT${NC}"
+  echo -e "  ${YELLOW}  (Notes/Learning/Guidelines will work but start empty)${NC}"
+  echo -e "  ${YELLOW}  To sync content from main computer: rsync from main's ~/Projects/_notes/ etc.${NC}"
+else
+  echo -e "  ${GREEN}✓ Project dirs already exist in $PROJECTS_ROOT${NC}"
+fi
+
+# ── Write clean GitHub sync config ────────────────────────────────────────────
+
+SYNC_CONFIG="$SCRIPT_DIR/backend/data/github_sync_config.json"
+if [ ! -f "$SYNC_CONFIG" ]; then
+  cat > "$SYNC_CONFIG" <<'EOF'
+{
+  "enabled": false,
+  "machine_role": "laptop",
+  "repo_owner": "chadchae",
+  "repo_name": "pm_master_sync",
+  "token": "",
+  "branch": "main",
+  "auto_pull_on_start": true,
+  "last_synced_at": "",
+  "last_sync_result": ""
+}
+EOF
+  echo -e "  ${GREEN}✓ Default sync config created (repo: pm_master_sync, role: laptop)${NC}"
+  echo -e "  ${YELLOW}  → Add your GitHub token in Settings → GitHub Data Sync${NC}"
+else
+  echo -e "  ${YELLOW}⚠ Sync config already exists — not overwritten${NC}"
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 
@@ -166,3 +219,8 @@ echo -e "Then open: ${BLUE}http://localhost:3001${NC}"
 echo ""
 echo -e "Default login password: ${YELLOW}admin${NC}"
 echo -e "${YELLOW}(Change it immediately in Settings after first login)${NC}"
+echo ""
+echo -e "Next steps:"
+echo -e "  1. Go to Settings → GitHub Data Sync"
+echo -e "  2. Set machine role: ${YELLOW}Laptop${NC}"
+echo -e "  3. Add your GitHub token → Test → Save → Pull from GitHub"

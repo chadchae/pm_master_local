@@ -50,8 +50,17 @@ def save_sync_config(body: SyncConfigRequest):
 
 @router.post("/test")
 def test_connection(body: TestConnectionRequest):
-    """Test GitHub token and repo access."""
-    result = github_sync_service.test_connection(body.token, body.repo_owner, body.repo_name)
+    """Test GitHub token and repo access.
+
+    If token is blank, falls back to the saved token in config.
+    """
+    token = body.token.strip()
+    if not token:
+        cfg = github_sync_service.load_config()
+        token = cfg.get("token", "")
+    if not token:
+        return {"ok": False, "message": "No token provided and no saved token found."}
+    result = github_sync_service.test_connection(token, body.repo_owner, body.repo_name)
     return result
 
 
