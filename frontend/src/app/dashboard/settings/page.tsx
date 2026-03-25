@@ -61,8 +61,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [pulling, setPulling] = useState(false);
+  const [pushElapsed, setPushElapsed] = useState(0);
+  const [pullElapsed, setPullElapsed] = useState(0);
   const [pushSuccess, setPushSuccess] = useState(false);
   const [pullSuccess, setPullSuccess] = useState(false);
+  const [pushCount, setPushCount] = useState(0);
+  const [pullCount, setPullCount] = useState(0);
 
   // Confirm dialogs
   const [pushConfirm, setPushConfirm] = useState(false);
@@ -70,6 +74,21 @@ export default function SettingsPage() {
   const [confirmMessage, setConfirmMessage] = useState("");
 
   useEffect(() => { loadStatus(); }, []);
+
+  // Elapsed time timers for push/pull
+  useEffect(() => {
+    if (!pushing) { setPushElapsed(0); return; }
+    const start = Date.now();
+    const interval = setInterval(() => setPushElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [pushing]);
+
+  useEffect(() => {
+    if (!pulling) { setPullElapsed(0); return; }
+    const start = Date.now();
+    const interval = setInterval(() => setPullElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [pulling]);
 
   async function loadStatus() {
     setLoading(true);
@@ -138,8 +157,9 @@ export default function SettingsPage() {
       }
       if (res.ok) {
         toast.success(`Pushed ${res.pushed} files to GitHub`);
+        setPushCount(res.pushed || 0);
         setPushSuccess(true);
-        setTimeout(() => setPushSuccess(false), 3000);
+        setTimeout(() => setPushSuccess(false), 5000);
       } else {
         toast.error(res.message || `Push failed (${res.errors} errors)`);
       }
@@ -170,8 +190,9 @@ export default function SettingsPage() {
       }
       if (res.ok) {
         toast.success(`Pulled ${res.pulled} files from GitHub`);
+        setPullCount(res.pulled || 0);
         setPullSuccess(true);
-        setTimeout(() => setPullSuccess(false), 3000);
+        setTimeout(() => setPullSuccess(false), 5000);
       } else {
         toast.error(res.message || `Pull failed (${res.errors} errors)`);
       }
@@ -401,10 +422,10 @@ export default function SettingsPage() {
                     }`}>
                     <span className="flex items-center gap-1.5">
                       {pushing ? <Loader2 size={14} className="animate-spin" /> : pushSuccess ? <CheckCircle size={14} /> : <Upload size={14} />}
-                      {pushSuccess ? "Pushed!" : "Push to GitHub"}
+                      {pushSuccess ? `Pushed ${pushCount} files!` : "Push to GitHub"}
                       {!pushSuccess && currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
                     </span>
-                    {pushing && <span className="text-[10px] opacity-60">uploading files...</span>}
+                    {pushing && <span className="text-[10px] opacity-60">uploading files...{pushElapsed > 0 && ` ${pushElapsed}s`}</span>}
                   </button>
 
                   {/* Pull */}
@@ -418,10 +439,10 @@ export default function SettingsPage() {
                     }`}>
                     <span className="flex items-center gap-1.5">
                       {pulling ? <Loader2 size={14} className="animate-spin" /> : pullSuccess ? <CheckCircle size={14} /> : <Download size={14} />}
-                      {pullSuccess ? "Pulled!" : "Pull from GitHub"}
-                      {!pullSuccess && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
+                      {pullSuccess ? `Pulled ${pullCount} files!` : "Pull from GitHub"}
+                      {!pullSuccess && !pulling && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
                     </span>
-                    {pulling && <span className="text-[10px] opacity-60">downloading files...</span>}
+                    {pulling && <span className="text-[10px] opacity-60">downloading files...{pullElapsed > 0 && ` ${pullElapsed}s`}</span>}
                   </button>
                 </div>
 
