@@ -186,6 +186,66 @@ def update_card_order(body: CardOrderRequest):
     return {"success": True}
 
 
+# --- Major schedules ---
+
+_MAJOR_SCHEDULES_FILE = Path(__file__).parent.parent / "data" / "major_schedules.json"
+
+
+def _load_major_schedules() -> list:
+    if not _MAJOR_SCHEDULES_FILE.exists():
+        return []
+    try:
+        return json.loads(_MAJOR_SCHEDULES_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+
+
+def _save_major_schedules(schedules: list) -> None:
+    _MAJOR_SCHEDULES_FILE.write_text(json.dumps(schedules, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+class MajorScheduleRequest(BaseModel):
+    title: str
+    date: str  # YYYY-MM-DD
+
+
+@router.get("/major-schedules")
+def get_major_schedules():
+    return {"schedules": _load_major_schedules()}
+
+
+@router.post("/major-schedules")
+def create_major_schedule(body: MajorScheduleRequest):
+    import time, random, string
+    schedules = _load_major_schedules()
+    new_id = f"{int(time.time() * 1000)}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=6))}"
+    schedules.append({"id": new_id, "title": body.title, "date": body.date})
+    _save_major_schedules(schedules)
+    return {"schedules": schedules}
+
+
+@router.put("/major-schedules/{schedule_id}")
+def update_major_schedule(schedule_id: str, body: MajorScheduleRequest):
+    schedules = _load_major_schedules()
+    for s in schedules:
+        if s["id"] == schedule_id:
+            s["title"] = body.title
+            s["date"] = body.date
+            break
+    else:
+        raise HTTPException(status_code=404, detail="Schedule not found")
+    _save_major_schedules(schedules)
+    return {"schedules": schedules}
+
+
+@router.delete("/major-schedules/{schedule_id}")
+def delete_major_schedule(schedule_id: str):
+    schedules = _load_major_schedules()
+    schedules = [s for s in schedules if s["id"] != schedule_id]
+    _save_major_schedules(schedules)
+    return {"schedules": schedules}
+
+
 # --- Discussion timeline endpoint ---
 
 @router.get("/discussions/timeline")

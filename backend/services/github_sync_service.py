@@ -23,7 +23,7 @@ SKIP_FILES = {"auth.json", "tokens.json", "github_sync_config.json"}
 SYNC_SUBDIRS = ["todos", "issues", "schedules", "subtasks", "logs"]
 
 # Top-level JSON files to sync
-SYNC_TOP_LEVEL = ["people.json", "plans.json", "card_order.json"]
+SYNC_TOP_LEVEL = ["people.json", "plans.json", "card_order.json", "major_schedules.json"]
 
 GITHUB_API = "https://api.github.com"
 

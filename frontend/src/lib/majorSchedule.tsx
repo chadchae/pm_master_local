@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { apiFetch } from "@/lib/api";
 
 export interface MajorSchedule {
   id: string;
@@ -10,28 +11,10 @@ export interface MajorSchedule {
 
 interface MajorScheduleContextType {
   schedules: MajorSchedule[];
-  addSchedule: (title: string, date: string) => void;
-  removeSchedule: (id: string) => void;
-  updateSchedule: (id: string, title: string, date: string) => void;
+  addSchedule: (title: string, date: string) => Promise<void>;
+  removeSchedule: (id: string) => Promise<void>;
+  updateSchedule: (id: string, title: string, date: string) => Promise<void>;
   getUpcoming: (count: number) => MajorSchedule[];
-}
-
-const STORAGE_KEY = "pm_major_schedules";
-
-function loadFromStorage(): MajorSchedule[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(schedules: MajorSchedule[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
 }
 
 const MajorScheduleContext = createContext<MajorScheduleContextType | null>(null);
@@ -40,41 +23,64 @@ export function MajorScheduleProvider({ children }: { children: ReactNode }) {
   const [schedules, setSchedules] = useState<MajorSchedule[]>([]);
 
   useEffect(() => {
-    setSchedules(loadFromStorage());
+    apiFetch<{ schedules: MajorSchedule[] }>("/api/major-schedules")
+      .then((data) => {
+        if (data.schedules.length === 0) {
+          // One-time migration from localStorage
+          try {
+            const raw = localStorage.getItem("pm_major_schedules");
+            if (raw) {
+              const parsed: MajorSchedule[] = JSON.parse(raw);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                Promise.all(
+                  parsed.map((s) =>
+                    apiFetch<{ schedules: MajorSchedule[] }>("/api/major-schedules", {
+                      method: "POST",
+                      body: JSON.stringify({ title: s.title, date: s.date }),
+                    })
+                  )
+                ).then((results) => {
+                  setSchedules(results[results.length - 1]?.schedules ?? []);
+                  localStorage.removeItem("pm_major_schedules");
+                });
+                return;
+              }
+            }
+          } catch {
+            // ignore migration errors
+          }
+        }
+        setSchedules(data.schedules);
+      })
+      .catch(() => {});
   }, []);
 
-  const persist = useCallback((next: MajorSchedule[]) => {
-    setSchedules(next);
-    saveToStorage(next);
+  const addSchedule = useCallback(async (title: string, date: string) => {
+    const data = await apiFetch<{ schedules: MajorSchedule[] }>("/api/major-schedules", {
+      method: "POST",
+      body: JSON.stringify({ title, date }),
+    });
+    setSchedules(data.schedules);
   }, []);
 
-  const addSchedule = useCallback(
-    (title: string, date: string) => {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      persist([...schedules, { id, title, date }]);
-    },
-    [schedules, persist]
-  );
+  const removeSchedule = useCallback(async (id: string) => {
+    const data = await apiFetch<{ schedules: MajorSchedule[] }>(`/api/major-schedules/${id}`, {
+      method: "DELETE",
+    });
+    setSchedules(data.schedules);
+  }, []);
 
-  const removeSchedule = useCallback(
-    (id: string) => {
-      persist(schedules.filter((s) => s.id !== id));
-    },
-    [schedules, persist]
-  );
-
-  const updateSchedule = useCallback(
-    (id: string, title: string, date: string) => {
-      persist(schedules.map((s) => (s.id === id ? { ...s, title, date } : s)));
-    },
-    [schedules, persist]
-  );
+  const updateSchedule = useCallback(async (id: string, title: string, date: string) => {
+    const data = await apiFetch<{ schedules: MajorSchedule[] }>(`/api/major-schedules/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ title, date }),
+    });
+    setSchedules(data.schedules);
+  }, []);
 
   const getUpcoming = useCallback(
     (count: number): MajorSchedule[] => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().slice(0, 10);
+      const todayStr = new Date().toISOString().slice(0, 10);
       return schedules
         .filter((s) => s.date >= todayStr)
         .sort((a, b) => a.date.localeCompare(b.date))
