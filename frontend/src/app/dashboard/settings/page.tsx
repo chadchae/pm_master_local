@@ -425,7 +425,7 @@ export default function SettingsPage() {
                       {pushSuccess ? `Pushed ${pushCount} files!` : "Push to GitHub"}
                       {!pushSuccess && currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
                     </span>
-                    {pushing && <span className="text-[10px] opacity-60">uploading files...{pushElapsed > 0 && ` ${pushElapsed}s`}</span>}
+                    {pushing && <span className="text-[10px] opacity-60">uploading {status?.last_sync_result?.match(/(\d+) files/)?.[1] || ''} files...{pushElapsed > 0 && ` ${pushElapsed}s`}</span>}
                   </button>
 
                   {/* Pull */}
@@ -442,7 +442,7 @@ export default function SettingsPage() {
                       {pullSuccess ? `Pulled ${pullCount} files!` : "Pull from GitHub"}
                       {!pullSuccess && !pulling && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
                     </span>
-                    {pulling && <span className="text-[10px] opacity-60">downloading files...{pullElapsed > 0 && ` ${pullElapsed}s`}</span>}
+                    {pulling && <span className="text-[10px] opacity-60">downloading {status?.last_sync_result?.match(/(\d+) files/)?.[1] || ''} files...{pullElapsed > 0 && ` ${pullElapsed}s`}</span>}
                   </button>
                 </div>
 

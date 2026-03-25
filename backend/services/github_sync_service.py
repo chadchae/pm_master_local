@@ -3,7 +3,6 @@
 import base64
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Optional
 
@@ -187,12 +186,11 @@ def push_all() -> dict:
         for f in sorted(MEMO_DIR.glob("*.md")):
             tasks.append((f, f"memos/{f.name}"))
 
-    # Push all files in parallel (max 8 concurrent)
+    # Push files sequentially (Contents API creates a commit per file,
+    # so parallel pushes cause SHA conflicts / HTTP 409)
     results = []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = {pool.submit(_push_file, local, remote, cfg): remote for local, remote in tasks}
-        for future in as_completed(futures):
-            results.append(future.result())
+    for local, remote in tasks:
+        results.append(_push_file(local, remote, cfg))
 
     errors = sum(1 for r in results if r["status"] == "error")
 
