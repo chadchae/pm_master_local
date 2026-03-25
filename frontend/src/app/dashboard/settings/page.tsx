@@ -61,6 +61,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [pulling, setPulling] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState(false);
+  const [pullSuccess, setPullSuccess] = useState(false);
 
   // Confirm dialogs
   const [pushConfirm, setPushConfirm] = useState(false);
@@ -134,8 +136,13 @@ export default function SettingsPage() {
         setPushConfirm(true);
         return;
       }
-      if (res.ok) toast.success(`Pushed ${res.pushed} files to GitHub`);
-      else toast.error(res.message || `Push failed (${res.errors} errors)`);
+      if (res.ok) {
+        toast.success(`Pushed ${res.pushed} files to GitHub`);
+        setPushSuccess(true);
+        setTimeout(() => setPushSuccess(false), 3000);
+      } else {
+        toast.error(res.message || `Push failed (${res.errors} errors)`);
+      }
       await loadStatus();
     } catch (e: unknown) {
       // 409 = warning/confirm needed
@@ -161,8 +168,13 @@ export default function SettingsPage() {
         setPullConfirm(true);
         return;
       }
-      if (res.ok) toast.success(`Pulled ${res.pulled} files from GitHub`);
-      else toast.error(res.message || `Pull failed (${res.errors} errors)`);
+      if (res.ok) {
+        toast.success(`Pulled ${res.pulled} files from GitHub`);
+        setPullSuccess(true);
+        setTimeout(() => setPullSuccess(false), 3000);
+      } else {
+        toast.error(res.message || `Pull failed (${res.errors} errors)`);
+      }
       await loadStatus();
     } catch (e: unknown) {
       const err = e as { status?: number; body?: SyncResult };
@@ -381,25 +393,29 @@ export default function SettingsPage() {
                   {/* Push */}
                   <button onClick={() => executePush(false)} disabled={pushing || !syncEnabled}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
-                      currentRole === "laptop"
+                      pushSuccess
+                        ? "bg-green-700/50 text-green-300 border border-green-600/50"
+                        : currentRole === "laptop"
                         ? "bg-yellow-800/40 hover:bg-yellow-700/40 text-yellow-300 border border-yellow-700/50"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-200"
                     }`}>
-                    {pushing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                    Push to GitHub
-                    {currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
+                    {pushing ? <Loader2 size={14} className="animate-spin" /> : pushSuccess ? <CheckCircle size={14} /> : <Upload size={14} />}
+                    {pushSuccess ? "Pushed!" : "Push to GitHub"}
+                    {!pushSuccess && currentRole === "laptop" && <AlertTriangle size={12} className="opacity-60" />}
                   </button>
 
                   {/* Pull */}
                   <button onClick={() => executePull(false)} disabled={pulling || !syncEnabled}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm rounded-lg disabled:opacity-40 transition-colors ${
-                      currentRole === "main"
+                      pullSuccess
+                        ? "bg-green-700/50 text-green-300 border border-green-600/50"
+                        : currentRole === "main"
                         ? "bg-yellow-800/40 hover:bg-yellow-700/40 text-yellow-300 border border-yellow-700/50"
                         : "bg-gray-700 hover:bg-gray-600 text-gray-200"
                     }`}>
-                    {pulling ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Pull from GitHub
-                    {currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
+                    {pulling ? <Loader2 size={14} className="animate-spin" /> : pullSuccess ? <CheckCircle size={14} /> : <Download size={14} />}
+                    {pullSuccess ? "Pulled!" : "Pull from GitHub"}
+                    {!pullSuccess && currentRole === "main" && <AlertTriangle size={12} className="opacity-60" />}
                   </button>
                 </div>
 
