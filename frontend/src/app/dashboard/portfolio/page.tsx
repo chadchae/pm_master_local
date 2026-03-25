@@ -17,7 +17,7 @@ export default function PortfolioPage() {
           <Briefcase className="w-10 h-10 text-neutral-400 dark:text-neutral-500" />
         </div>
         <h1 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">포트폴리오</h1>
-        <p className="text-sm text-neutral-400 dark:text-neutral-500">추후 개발 예정입니다.</p>
+        <p className="text-sm text-neutral-400 dark:text-neutral-500">추후 개발 예정입니다. 기대해주세요.</p>
       </div>
 
       <div className="border border-dashed border-neutral-300 dark:border-neutral-700 rounded-xl p-6 space-y-4">
