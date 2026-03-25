@@ -277,8 +277,11 @@ export default function PeoplePage() {
           .map((p) => p.metadata?.label || p.name)
           .sort()
       );
-      // Auto-sync projects→people
-      apiFetch("/api/people/sync-projects", { method: "POST" }).catch(() => {});
+      // Auto-sync projects→people, then reload to reflect cleanup
+      apiFetch("/api/people/sync-projects", { method: "POST" })
+        .then(() => apiFetch<{ people: Person[] }>("/api/people"))
+        .then((res) => setPeople(res.people))
+        .catch(() => {});
     } catch {
       toast.error(t("toast.failedToLoadPeople"));
     } finally {

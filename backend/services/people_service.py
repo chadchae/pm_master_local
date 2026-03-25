@@ -481,9 +481,38 @@ def sync_projects_to_people() -> None:
                     deduped.append(n)
             update_metadata(proj["name"], {"related_people": ", ".join(deduped)})
 
-    # NOTE: Intentionally NO reverse cleanup.
-    # Removing someone from a project's related_people does NOT remove
-    # the project from the person's projects list. This is by design.
+    # --- Stale reference cleanup ---
+    # Build sets of valid project labels and valid person IDs
+    valid_labels: set[str] = set()
+    for proj in projects:
+        label = proj.get("metadata", {}).get("label", proj["name"])
+        valid_labels.add(label)
+        valid_labels.add(proj["name"])
+
+    valid_ids: set[str] = {p["id"] for p in people}
+
+    # Clean up stale projects and connections from all people
+    for person in people:
+        changed = False
+
+        # Remove projects that no longer exist
+        person_projects = person.get("projects", [])
+        cleaned_projects = [p for p in person_projects if p in valid_labels]
+        if len(cleaned_projects) != len(person_projects):
+            person["projects"] = cleaned_projects
+            changed = True
+
+        # Remove connections to deleted people
+        connections = person.get("connections", [])
+        cleaned_connections = [c for c in connections if c in valid_ids]
+        if len(cleaned_connections) != len(connections):
+            person["connections"] = cleaned_connections
+            changed = True
+
+        if changed:
+            filepath = Path(person.get("_filepath", ""))
+            if filepath.exists():
+                _write_person_file(person, filepath)
 
 
 def add_project_to_person(person_name: str, project_label: str) -> None:
