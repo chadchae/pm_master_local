@@ -99,7 +99,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-neutral-900 dark:text-white truncate">
-                PM Master Local <span className="text-[10px] font-normal text-neutral-400">v2.2.0</span>
+                {process.env.NEXT_PUBLIC_APP_NAME || "PM Master Local"} <span className="text-[10px] font-normal text-neutral-400">v2.2.0</span>
               </span>
               <a href="mailto:chadchae@gmail.com" className="text-[10px] text-neutral-400 hover:text-indigo-400 transition-colors truncate leading-tight">
                 chadchae@gmail.com
