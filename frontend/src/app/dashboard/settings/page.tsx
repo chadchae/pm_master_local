@@ -16,6 +16,7 @@ import {
   Monitor,
   Laptop,
   AlertTriangle,
+  KeyRound,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -39,6 +40,50 @@ interface SyncResult {
   errors: number;
   synced_at?: string;
   message?: string;
+}
+
+function PasswordChangeForm() {
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (newPw !== confirmPw) { toast.error("Passwords do not match"); return; }
+    if (newPw.length < 4) { toast.error("Password must be at least 4 characters"); return; }
+    setLoading(true);
+    try {
+      await apiFetch("/api/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ current_password: currentPw, new_password: newPw }),
+      });
+      toast.success("Password changed");
+      setCurrentPw(""); setNewPw(""); setConfirmPw("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <input type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)}
+        placeholder="Current password"
+        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)}
+        placeholder="New password"
+        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      <input type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
+        placeholder="Confirm new password"
+        className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+      <button onClick={handleSubmit} disabled={loading || !currentPw || !newPw || !confirmPw}
+        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg text-sm transition-colors flex items-center gap-1.5">
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+        Change Password
+      </button>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -464,9 +509,17 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* Change Password */}
+      <section className="bg-gray-800 rounded-xl border border-gray-700 px-6 py-5 space-y-3">
+        <h3 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+          <KeyRound size={14} /> Change Password
+        </h3>
+        <PasswordChangeForm />
+      </section>
+
       {/* What gets synced */}
       <section className="bg-gray-800 rounded-xl border border-gray-700 px-6 py-5 space-y-3">
-        <h3 className="text-sm font-semibold text-gray-300">What gets synced</h3>
+        <h3 className="text-sm font-semibold text-gray-300">What gets synced (via GitHub)</h3>
         <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
           {["Todos", "Issues", "Schedules", "Subtasks", "Activity logs", "People", "Plans", "Card order"].map((item) => (
             <div key={item} className="flex items-center gap-1.5">
