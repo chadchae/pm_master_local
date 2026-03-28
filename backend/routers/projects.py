@@ -49,7 +49,7 @@ def list_projects():
 
 @router.delete("/projects/{project_name}")
 def delete_project(project_name: str):
-    """Permanently delete a project folder (only from 7_discarded)."""
+    """Permanently delete a project folder (only from 9_discarded)."""
     result = scanner_service.delete_project(project_name)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
@@ -63,7 +63,7 @@ class RestoreProjectRequest(BaseModel):
 @router.post("/projects/{project_name}/restore")
 def restore_project(project_name: str, body: RestoreProjectRequest):
     """Restore a discarded project back to a stage."""
-    result = scanner_service.move_project(project_name, "7_discarded", body.target_stage)
+    result = scanner_service.move_project(project_name, "9_discarded", body.target_stage)
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     return result
@@ -135,6 +135,46 @@ def create_project(body: CreateProjectRequest):
     if not result["success"]:
         raise HTTPException(status_code=400, detail=result["message"])
     log_service.auto_log(body.folder_name, "create", f"Project created: {body.label or body.folder_name}")
+    return result
+
+
+class CreateResearchRequest(BaseModel):
+    folder_name: str
+    label: str = ""
+    description: str = ""
+    stage: str = "1_idea_stage"
+    owner: str = "채충일"
+    collaboration: str = "personal"
+    role: str = "lead"
+    importance: str = "3"
+    urgency: str = "low"
+    priority: str = "low"
+    deadline: str = ""
+    related_people: str = ""
+    related_projects: str = ""
+
+
+@router.post("/projects/create-research")
+def create_research_project(body: CreateResearchRequest):
+    """Create a research project with full folder structure (docs/public/_session)."""
+    result = scanner_service.create_research_project(
+        folder_name=body.folder_name,
+        label=body.label,
+        description=body.description,
+        stage=body.stage,
+        owner=body.owner,
+        collaboration=body.collaboration,
+        role=body.role,
+        importance=body.importance,
+        urgency=body.urgency,
+        priority=body.priority,
+        deadline=body.deadline,
+        related_people=body.related_people,
+        related_projects=body.related_projects,
+    )
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["message"])
+    log_service.auto_log(body.folder_name, "create", f"Research project created: {body.label or body.folder_name}")
     return result
 
 
@@ -239,3 +279,64 @@ def download_project(project_name: str):
         )
     except OSError as e:
         raise HTTPException(status_code=500, detail=f"Failed to create archive: {e}")
+
+
+@router.post("/projects/{project_name}/setup-gdrive")
+def setup_project_gdrive(project_name: str):
+    """Create Google Drive folder + template gdoc/gsheet files for a project."""
+    try:
+        from services.gdrive_service import setup_research_project_drive
+        # Get project label from metadata
+        projects = scanner_service.scan_projects()
+        label = project_name
+        for p in projects:
+            if p["name"] == project_name:
+                label = p.get("metadata", {}).get("label", project_name)
+                break
+        result = setup_research_project_drive(project_name, label)
+        if not result["success"]:
+            raise HTTPException(status_code=400, detail=result.get("message", "Failed"))
+        # Save gdrive_url to yaml
+        if result.get("folder_url"):
+            scanner_service.update_metadata(project_name, {"gdrive_url": result["folder_url"]})
+        return result
+    except ImportError:
+        raise HTTPException(status_code=500, detail="Google API packages not installed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/research-projects")
+def list_research_projects():
+    """List only research projects (유형=연구) with enriched metadata."""
+    all_projects = scanner_service.scan_projects()
+    research = []
+    for p in all_projects:
+        meta = p.get("metadata", {})
+        if meta.get("유형") == "연구":
+            research.append({
+                "name": p["name"],
+                "label": meta.get("label", p["name"]),
+                "stage": p.get("stage", ""),
+                "stageName": p.get("stageName", ""),
+                "status": meta.get("상태", ""),
+                "type": meta.get("유형", ""),
+                "importance": meta.get("중요도", ""),
+                "urgency": meta.get("위급도", ""),
+                "priority": meta.get("긴급도", ""),
+                "collaboration": meta.get("협업", ""),
+                "role": meta.get("주도", ""),
+                "owner": meta.get("오너", ""),
+                "deadline": meta.get("목표종료일", ""),
+                "people": meta.get("related_people", ""),
+                "related": meta.get("연관프로젝트", ""),
+                "subtasks_total": meta.get("subtasks_total", "0"),
+                "subtasks_done": meta.get("subtasks_done", "0"),
+                "github": meta.get("github_url", f"https://github.com/ChadResearch/{p['name'].replace(' ', '-')}"),
+                "pages": meta.get("github_pages_url", f"https://chadresearch.github.io/{p['name'].replace(' ', '-')}/"),
+                "gdrive": meta.get("gdrive_url", "https://drive.google.com/drive/folders/10BeaOMwS_kDT2bd16tTEk9W-ucbO7jDs"),
+            })
+    # Sort by priority desc, then urgency desc
+    priority_order = {"urgent": 4, "high": 3, "medium": 2, "low": 1, "": 0}
+    research.sort(key=lambda x: (priority_order.get(x["priority"], 0), priority_order.get(x["urgency"], 0)), reverse=True)
+    return {"projects": research, "total": len(research)}

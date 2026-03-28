@@ -190,6 +190,22 @@ def delete_folder(project_name: str, folder_name: str):
     return result
 
 
+@router.post("/projects/{project_name}/docs-open/{filename:path}")
+def open_doc_in_system(project_name: str, filename: str):
+    """Open a document with the system default application (macOS `open`)."""
+    import subprocess
+
+    filepath = document_service._resolve_file_path(project_name, filename)
+    if filepath is None:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    try:
+        subprocess.Popen(["open", str(filepath)])
+        return {"success": True, "message": f"Opened {filepath.name}"}
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to open: {e}")
+
+
 @router.get("/search")
 def search_docs(q: str = ""):
     """Full-text search across all project docs."""

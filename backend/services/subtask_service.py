@@ -14,6 +14,25 @@ def _get_data_file(project_name: str) -> Path:
     return DATA_DIR / f"{project_name}.json"
 
 
+def _sync_yaml_subtasks(project_name: str) -> None:
+    """Sync subtask counts to _project.yaml (subtasks_total/subtasks_done).
+
+    Called automatically after create/delete/toggle operations.
+    """
+    try:
+        from services.scanner_service import update_metadata
+        data = _load_subtasks(project_name)
+        subtasks = data.get("subtasks", [])
+        total = len(subtasks)
+        done = len([s for s in subtasks if s.get("status") == "done"])
+        update_metadata(project_name, {
+            "subtasks_total": str(total),
+            "subtasks_done": str(done),
+        })
+    except Exception:
+        pass  # Silently fail — yaml sync is best-effort
+
+
 def _load_subtasks(project_name: str) -> dict[str, Any]:
     """Load subtasks for a project, creating default if not exists."""
     data_file = _get_data_file(project_name)
@@ -60,6 +79,7 @@ def create_subtask(
 
     data["subtasks"].append(new_subtask)
     _save_subtasks(project_name, data)
+    _sync_yaml_subtasks(project_name)
     return new_subtask
 
 
@@ -91,6 +111,7 @@ def delete_subtask(project_name: str, subtask_id: str) -> bool:
         ):
             item["order"] = idx
         _save_subtasks(project_name, data)
+        _sync_yaml_subtasks(project_name)
         return True
     return False
 
@@ -111,6 +132,7 @@ def toggle_subtask(
             else:
                 item["completed_at"] = ""
             _save_subtasks(project_name, data)
+            _sync_yaml_subtasks(project_name)
             return item
     return None
 

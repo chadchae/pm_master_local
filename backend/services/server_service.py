@@ -18,7 +18,9 @@ STAGE_PREFIXES = [
     "4_in_testing",
     "5_completed",
     "6_archived",
-    "7_discarded",
+    "7_series",
+    "8_operation",
+    "9_discarded",
 ]
 
 
@@ -65,8 +67,8 @@ def _parse_port_from_metadata(project_path: Path) -> int | None:
     return None
 
 
-def _check_port_in_use(port: int) -> dict[str, Any] | None:
-    """Check if a port is in use and return process info."""
+def _check_port_in_use(port: int, project_path: Path | None = None) -> dict[str, Any] | None:
+    """Check if a port is in use and optionally verify it belongs to the given project."""
     try:
         result = subprocess.run(
             ["lsof", "-i", f":{port}", "-P", "-n", "-t"],
@@ -76,6 +78,25 @@ def _check_port_in_use(port: int) -> dict[str, Any] | None:
         )
         if result.returncode == 0 and result.stdout.strip():
             pids = result.stdout.strip().split("\n")
+
+            # If project_path given, verify the process belongs to this project
+            if project_path and pids:
+                project_str = str(project_path)
+                owns_port = False
+                for pid in pids:
+                    try:
+                        cmd_result = subprocess.run(
+                            ["ps", "-p", pid, "-o", "command="],
+                            capture_output=True, text=True, timeout=3,
+                        )
+                        if cmd_result.returncode == 0 and project_str in cmd_result.stdout:
+                            owns_port = True
+                            break
+                    except (subprocess.TimeoutExpired, OSError):
+                        continue
+                if not owns_port:
+                    return None
+
             return {
                 "port": port,
                 "in_use": True,
@@ -164,19 +185,21 @@ def get_server_status() -> list[dict[str, Any]]:
             frontend_pid: str | None = None
 
             if ports["backend"]:
-                info = _check_port_in_use(ports["backend"])
+                info = _check_port_in_use(ports["backend"], project_dir)
                 if info and info.get("in_use"):
                     backend_alive = True
                     backend_pid = info["pids"][0] if info["pids"] else None
 
             if ports["frontend"]:
-                info = _check_port_in_use(ports["frontend"])
+                info = _check_port_in_use(ports["frontend"], project_dir)
                 if info and info.get("in_use"):
                     frontend_alive = True
                     frontend_pid = info["pids"][0] if info["pids"] else None
 
             # Get metadata
             meta = _read_project_yaml(project_dir)
+
+            is_self = project_dir.name == "pm-master-chad"
 
             statuses.append({
                 "project_name": project_dir.name,
@@ -191,6 +214,7 @@ def get_server_status() -> list[dict[str, Any]]:
                 "backend_pid": backend_pid,
                 "frontend_pid": frontend_pid,
                 "has_run_sh": True,
+                "is_self": is_self,
                 # Legacy fields for compatibility
                 "port": ports["backend"] or ports["frontend"],
                 "status": "running" if (backend_alive or frontend_alive) else "stopped",
@@ -216,6 +240,10 @@ async def run_server_command(
     """
     if command not in ("start", "stop", "restart"):
         return {"success": False, "message": f"Invalid command: {command}"}
+
+    # Self-protection: prevent stopping the currently running PM Master Chad
+    if project_name == "pm-master-chad" and command in ("stop", "restart"):
+        return {"success": False, "message": "Cannot stop PM Master Chad from its own UI"}
 
     project_path = _find_project_path(project_name)
     if project_path is None:

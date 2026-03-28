@@ -20,7 +20,9 @@ STAGE_FOLDERS = {
     "4": "4_in_testing",
     "5": "5_completed",
     "6": "6_archived",
-    "7": "7_discarded",
+    "7": "7_series",
+    "8": "8_operation",
+    "9": "9_discarded",
 }
 
 # Reverse mapping: folder name -> stage number
@@ -382,6 +384,7 @@ EDITABLE_META_KEYS = {
     "유형", "포트", "상태",
     "목표종료일", "실제종료일", "subtasks_total", "subtasks_done",
     "related_people", "연관프로젝트",
+    "github_url", "github_pages_url", "gdrive_url",
 }
 
 
@@ -403,7 +406,7 @@ def update_metadata(project_name: str, updates: dict[str, str]) -> dict[str, Any
         existing_meta = _read_project_yaml(project_path)
         if not existing_meta:
             from datetime import date
-            existing_meta = {"label": project_name, "작성일": date.today().isoformat(), "오너": "Chad"}
+            existing_meta = {"label": project_name, "작성일": date.today().isoformat(), "오너": "채충일"}
 
         safe = {k: v for k, v in updates.items() if k in EDITABLE_META_KEYS and v}
         existing_meta.update(safe)
@@ -625,7 +628,7 @@ def update_description(project_name: str, description: str) -> dict[str, Any]:
         if not (project_path / "docs" / "_project.yaml").exists():
             from datetime import date
             _write_project_yaml(project_path, {
-                "label": display_name, "작성일": date.today().isoformat(), "오너": "Chad",
+                "label": display_name, "작성일": date.today().isoformat(), "오너": "채충일",
             })
         synced = ["아이디어/_아이디어노트.md (created)"]
         _sync_readme_description(project_path, display_name, description, synced)
@@ -954,15 +957,15 @@ def migrate_to_new_structure() -> dict[str, Any]:
 
 
 def delete_project(project_name: str) -> dict[str, Any]:
-    """Permanently delete a project folder. Only allowed from 7_discarded."""
-    project_path = PROJECTS_ROOT / "7_discarded" / project_name
+    """Permanently delete a project folder. Only allowed from 9_discarded."""
+    project_path = PROJECTS_ROOT / "9_discarded" / project_name
 
     if not project_path.exists():
         return {"success": False, "message": f"Project not found in trash: {project_name}"}
 
-    # Security: verify it's actually in 7_discarded
+    # Security: verify it's actually in 9_discarded
     resolved = project_path.resolve()
-    discarded_root = (PROJECTS_ROOT / "7_discarded").resolve()
+    discarded_root = (PROJECTS_ROOT / "9_discarded").resolve()
     if not str(resolved).startswith(str(discarded_root)):
         return {"success": False, "message": "Invalid project path"}
 
@@ -1022,7 +1025,7 @@ def create_project(
             "label": display_name,
             "작성일": today,
             "상태": "아이디어 단계" if stage == "1_idea_stage" else "초기화",
-            "오너": "Chad",
+            "오너": "채충일",
         }
         if project_type:
             meta["유형"] = project_type
@@ -1052,6 +1055,274 @@ def create_project(
             "success": True,
             "message": f"Created {folder_name}",
             "path": str(project_path),
+        }
+    except OSError as e:
+        return {"success": False, "message": f"Failed: {e}"}
+
+
+def create_research_project(
+    folder_name: str,
+    label: str = "",
+    description: str = "",
+    stage: str = "1_idea_stage",
+    owner: str = "채충일",
+    collaboration: str = "personal",
+    role: str = "lead",
+    importance: str = "3",
+    urgency: str = "low",
+    priority: str = "low",
+    deadline: str = "",
+    related_people: str = "",
+    related_projects: str = "",
+) -> dict[str, Any]:
+    """Create a research project with full folder structure.
+
+    Based on kird_data_analysis reference structure:
+    - docs/ (metadata + research folders)
+    - public/ (Quarto Book for GitHub Pages)
+    - _session/ (session continuity)
+    """
+    stage_path = PROJECTS_ROOT / stage
+    stage_path.mkdir(parents=True, exist_ok=True)
+
+    project_path = stage_path / folder_name
+    if project_path.exists():
+        return {"success": False, "message": f"Project '{folder_name}' already exists"}
+
+    try:
+        from datetime import date
+        today = date.today().isoformat()
+        display_name = label or folder_name
+
+        project_path.mkdir(parents=True)
+
+        # === 1. docs/ structure ===
+        docs = project_path / "docs"
+        docs.mkdir()
+
+        # _project.yaml
+        meta: dict[str, Any] = {
+            "label": display_name,
+            "작성일": today,
+            "상태": "아이디어 단계" if stage == "1_idea_stage" else "초기화",
+            "유형": "연구",
+            "중요도": importance,
+            "위급도": urgency,
+            "긴급도": priority,
+            "협업": collaboration,
+            "주도": role,
+            "오너": owner,
+        }
+        if deadline:
+            meta["목표종료일"] = deadline
+        if related_people:
+            meta["related_people"] = related_people
+        if related_projects:
+            meta["연관프로젝트"] = related_projects
+
+        _write_project_yaml(project_path, meta)
+
+        # _settings/
+        settings = docs / "_settings"
+        settings.mkdir()
+        (settings / "project_note").mkdir()
+
+        # _템플릿/ (copy from Dropbox template if exists)
+        template_src = PROJECTS_ROOT / "_system" / "_templates" / "00_Public_Template"
+        draft_template_src = template_src.parent.parent.parent / "Project/_0000_00_TEMPLATE" / "Draft_Template"
+
+        # Research folder structure
+        research_dirs = [
+            "00_연구설정",
+            "01_기존자료/기존문서",
+            "01_기존자료/기존분석",
+            "01_기존자료/기존자료",
+            "02_아이디어",
+            "03_리터리쳐리뷰 프로세스/Article",
+            "03_리터리쳐리뷰 프로세스/Conceptual Framework",
+            "03_리터리쳐리뷰 프로세스/Literature Review",
+            "03_리터리쳐리뷰 프로세스/ScholarRAG",
+            "04_방법론",
+            "05_분석/Analysis_Template",
+            "05_분석/Data_Raw",
+            "05_분석/Qual",
+            "05_분석/Quan",
+            "05_분석/분석결과",
+            "06_라이팅 프로세스/00_Reference",
+            "06_라이팅 프로세스/01_Planning",
+            "06_라이팅 프로세스/02_Writing",
+            "06_라이팅 프로세스/03_Analysis",
+            "06_라이팅 프로세스/04_Proofreading",
+            "06_라이팅 프로세스/05_Review",
+            "06_라이팅 프로세스/06_Final",
+            "06_라이팅 프로세스/드레프트",
+            "07_Product",
+            "08_Publication_Process/journal1",
+            "08_Publication_Process/journal2",
+            "08_Publication_Process/journal3",
+            "08_Publication_Process/Published_Draft",
+            "09_토의록_Discussion_Points",
+            "10_회의록_Meeting_Log",
+        ]
+        for d in research_dirs:
+            (docs / d).mkdir(parents=True, exist_ok=True)
+
+        # Copy Draft template if exists
+        draft_src = PROJECTS_ROOT / "_system" / "_templates" / "01_Draft_Template"
+        if draft_src.is_dir():
+            import shutil
+            dest = docs / "_템플릿" / "Draft_Tempate"
+            shutil.copytree(draft_src, dest, dirs_exist_ok=True)
+
+        # === 2. public/ structure (Quarto Book) ===
+        pub_src = template_src
+        if pub_src.is_dir():
+            import shutil
+            pub_dest = project_path / "public"
+            shutil.copytree(pub_src, pub_dest, dirs_exist_ok=True)
+
+            # Update public/_quarto.yml with project info
+            quarto_yml = pub_dest / "_quarto.yml"
+            if quarto_yml.exists():
+                content = quarto_yml.read_text(encoding="utf-8")
+                content = content.replace('title: "TEMPLATE"', f'title: "{display_name}"')
+                content = content.replace('subtitle: "working"', f'subtitle: "{description or "Research in Progress"}"')
+                gh_name = folder_name.replace(" ", "-")
+                content = content.replace('repo-url: ""', f'repo-url: https://github.com/ChadResearch/{gh_name}')
+                # Update navbar github href
+                import re
+                content = re.sub(
+                    r'(icon: github\s*\n\s*href: )"?"?',
+                    f'\\1https://github.com/ChadResearch/{gh_name}',
+                    content,
+                )
+                quarto_yml.write_text(content, encoding="utf-8")
+
+            # Update public/index.qmd
+            index_qmd = pub_dest / "index.qmd"
+            if index_qmd.exists():
+                index_content = f"""# {display_name} {{.unnumbered}}
+
+## Project Details
+
+| Item | Value |
+|------|-------|
+| Owner | {owner} |
+| Type | Research |
+| Status | {meta['상태']} |
+| Created | {today} |
+| Collaboration | {collaboration} |
+"""
+                if related_people:
+                    index_content += f"| People | {related_people} |\n"
+                if deadline:
+                    index_content += f"| Deadline | {deadline} |\n"
+                if description:
+                    index_content += f"\n## Description\n\n{description}\n"
+                index_qmd.write_text(index_content, encoding="utf-8")
+        else:
+            # Fallback: minimal public/
+            pub_dest = project_path / "public"
+            pub_dest.mkdir()
+
+        # === 3. _session/ ===
+        session_dir = project_path / "_session"
+        session_dir.mkdir()
+        (session_dir / "README.md").write_text(
+            "# 세션 연속성 문서\n\n"
+            "이 프로젝트에서 작업 시작 시 Claude가 자동으로 채웁니다.\n\n"
+            "| 파일 | 상태 |\n|------|------|\n"
+            "| `resume_prompt.md` | 첫 작업 세션 후 생성 |\n"
+            "| `project_state.md` | 첫 작업 세션 후 생성 |\n"
+            "| `key_files.md` | 첫 작업 세션 후 생성 |\n",
+            encoding="utf-8",
+        )
+
+        # === 4. Auto-setup: GitHub repo + Pages + GDrive folder + URLs ===
+        import subprocess
+        gh_name = folder_name.replace(" ", "-")
+        gh_repo = f"ChadResearch/{gh_name}"
+        gh_url = f"https://github.com/{gh_repo}"
+        pages_url = f"https://chadresearch.github.io/{gh_name}/"
+        gdrive_root = "https://drive.google.com/drive/folders/10BeaOMwS_kDT2bd16tTEk9W-ucbO7jDs"
+
+        auto_results: dict[str, Any] = {}
+
+        # 4a. Create GitHub repo
+        try:
+            r = subprocess.run(
+                ["gh", "repo", "create", gh_repo, "--public", "--description", display_name],
+                capture_output=True, text=True, timeout=30,
+            )
+            auto_results["github_created"] = r.returncode == 0
+        except Exception as e:
+            auto_results["github_created"] = False
+            auto_results["github_error"] = str(e)
+
+        # 4b. Git init + push public/
+        pub_path = project_path / "public"
+        if pub_path.is_dir():
+            try:
+                subprocess.run(["git", "init"], cwd=str(pub_path), capture_output=True, timeout=10)
+                subprocess.run(["git", "remote", "add", "origin", f"{gh_url}.git"], cwd=str(pub_path), capture_output=True, timeout=10)
+                subprocess.run(["git", "add", "-A"], cwd=str(pub_path), capture_output=True, timeout=10)
+                subprocess.run(["git", "commit", "-m", f"Initial sync: {display_name}"], cwd=str(pub_path), capture_output=True, timeout=10)
+                subprocess.run(["git", "branch", "-M", "main"], cwd=str(pub_path), capture_output=True, timeout=10)
+                r = subprocess.run(["git", "push", "-u", "origin", "main", "--force"], cwd=str(pub_path), capture_output=True, text=True, timeout=60)
+                auto_results["git_pushed"] = r.returncode == 0
+            except Exception as e:
+                auto_results["git_pushed"] = False
+                auto_results["git_error"] = str(e)
+
+        # 4c. Enable GitHub Pages
+        try:
+            r = subprocess.run(
+                ["gh", "api", "-X", "POST", f"repos/{gh_repo}/pages",
+                 "-f", "build_type=legacy", "-f", "source[branch]=main", "-f", "source[path]=/docs"],
+                capture_output=True, text=True, timeout=30,
+            )
+            auto_results["pages_enabled"] = r.returncode == 0
+        except Exception as e:
+            auto_results["pages_enabled"] = False
+
+        # 4d. Create Google Drive folder + template gdoc/gsheet files via API
+        gdrive_url_actual = gdrive_root
+        try:
+            from services.gdrive_service import setup_research_project_drive
+            gdrive_result = setup_research_project_drive(folder_name, display_name)
+            auto_results["gdrive_created"] = gdrive_result.get("success", False)
+            auto_results["gdrive_files"] = gdrive_result.get("files_created", 0)
+            if gdrive_result.get("folder_url"):
+                gdrive_url_actual = gdrive_result["folder_url"]
+        except Exception as e:
+            auto_results["gdrive_created"] = False
+            auto_results["gdrive_error"] = str(e)
+            # Fallback: create local mount folder
+            try:
+                gdrive_local = Path.home() / "Library/CloudStorage/GoogleDrive-chadchae@gmail.com/My Drive/Research project/Working" / folder_name
+                gdrive_local.mkdir(parents=True, exist_ok=True)
+                auto_results["gdrive_local_fallback"] = True
+            except Exception:
+                pass
+
+        # 4e. Save URLs to _project.yaml
+        meta["github_url"] = gh_url
+        meta["github_pages_url"] = pages_url
+        meta["gdrive_url"] = gdrive_url_actual
+        _write_project_yaml(project_path, meta)
+
+        return {
+            "success": True,
+            "message": f"Research project created: {folder_name}",
+            "path": str(project_path),
+            "auto_setup": auto_results,
+            "links": {"github": gh_url, "pages": pages_url, "gdrive": gdrive_root},
+            "structure": {
+                "docs_dirs": len(research_dirs),
+                "has_public": True,
+                "has_session": True,
+                "has_draft_template": (docs / "_템플릿" / "Draft_Tempate").is_dir(),
+            },
         }
     except OSError as e:
         return {"success": False, "message": f"Failed: {e}"}

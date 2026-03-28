@@ -1,0 +1,147 @@
+[
+  {
+    "id": "0dc93fd3-de18-4760-b5ef-cab18937405e",
+    "title": "착하게 살자",
+    "stage": "planning",
+    "description": "착하게 살자",
+    "relatedProjects": [
+      "ai-assisted-qualitative-analysis-operator",
+      "al-atlasti-hil-lit-review",
+      "ai-work-chagne"
+    ],
+    "relatedPeople": [
+      "David L. Passmore",
+      "어승수",
+      "원종호"
+    ],
+    "relatedTodos": [
+      "c4f90a2d-efc4-45b5-a37c-f5752fd57a87",
+      "2ab25daa-665d-44f1-b42e-6ccd5ed60355"
+    ],
+    "relatedNotes": [
+      "민감한 정보 LLM api.md",
+      "_curiosity.md"
+    ],
+    "relatedLearning": [
+      "2026-03-21_fsQCA_5개모델_제안.md",
+      "2026-03-21_근거이론_코딩절차_이론제시.md"
+    ],
+    "relatedIssues": [
+      "95f01724-e5ae-48e5-adf9-e6af20f3e03f",
+      "dd6650ad-3dd4-488e-bbc3-41e2b0d300c6"
+    ],
+    "relatedSchedule": [
+      "dd8bb074-6027-4805-9fff-09cf86ea43b9",
+      "7101a322-c390-49a3-aa34-45a73a6d4860"
+    ],
+    "createdAt": "2026. 3. 24.",
+    "createdAtISO": "2026-03-24",
+    "planNodes": [],
+    "planEdges": [],
+    "mandalart": {
+      "center": "착하게 살자",
+      "themes": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "actions": [
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    "horizon": "long",
+    "horizonPeriod": "1year",
+    "importance": "",
+    "severity": "",
+    "urgency": "",
+    "planType": "personal",
+    "startDate": "",
+    "targetEndDate": "2027-03-24",
+    "actualEndDate": "",
+    "progress": 25
+  }
+]

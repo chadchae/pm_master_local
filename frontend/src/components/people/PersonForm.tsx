@@ -319,11 +319,11 @@ export function PersonForm({
             연관 프로젝트
           </label>
           <div className="flex flex-wrap gap-1.5 p-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg min-h-[36px]">
-            {allProjectLabels.map((proj) => {
+            {allProjectLabels.map((proj, idx) => {
               const isSelected = form.projects.includes(proj);
               return (
                 <button
-                  key={proj}
+                  key={`${proj}-${idx}`}
                   type="button"
                   onClick={() =>
                     setForm((f) => ({

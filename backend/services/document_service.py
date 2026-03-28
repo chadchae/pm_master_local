@@ -1,10 +1,55 @@
 """Document browser service for reading/writing project markdown files."""
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
 PROJECTS_ROOT = Path(os.environ.get("PROJECTS_ROOT", os.path.expanduser("~/Projects")))
+
+# Allowed prefixes for resolved macOS alias targets
+ALLOWED_ALIAS_TARGETS = ("/Volumes/",)
+
+
+def _resolve_macos_alias(alias_path: Path) -> Path | None:
+    """Resolve a macOS Finder alias file to its target path."""
+    if not alias_path.is_file():
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "osascript", "-e",
+                f'tell application "Finder" to get POSIX path of '
+                f'(original item of alias file (POSIX file "{alias_path}") as alias)',
+            ],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            target = Path(result.stdout.strip())
+            if target.is_dir() and any(str(target).startswith(p) for p in ALLOWED_ALIAS_TARGETS):
+                return target
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    return None
+
+
+def _resolve_alias_in_path(docs_dir: Path, subpath: str) -> Path | None:
+    """If subpath starts with an alias folder name, resolve to the real target path."""
+    if not subpath:
+        return None
+    parts = subpath.split("/", 1)
+    first = parts[0]
+    remainder = parts[1] if len(parts) > 1 else ""
+
+    # Check if first component matches an alias file in docs_dir
+    alias_file = docs_dir / first
+    if alias_file.is_file():
+        target = _resolve_macos_alias(alias_file)
+        if target:
+            return target / remainder if remainder else target
+
+    # Also try with " alias" suffix stripped (in case subpath was cleaned)
+    return None
 
 # Stage folder names for scanning
 STAGE_PREFIXES = [
@@ -15,7 +60,9 @@ STAGE_PREFIXES = [
     "4_in_testing",
     "5_completed",
     "6_archived",
-    "7_discarded",
+    "7_series",
+    "8_operation",
+    "9_discarded",
 ]
 
 
@@ -28,26 +75,8 @@ def _find_project_path(project_name: str) -> Path | None:
     return None
 
 
-def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
-    """List files in a project's docs/ directory (with optional subfolder)."""
-    project_path = _find_project_path(project_name)
-    if project_path is None:
-        return []
-
-    docs_dir = project_path / "docs"
-    target = docs_dir / subpath if subpath else docs_dir
-
-    # Security check
-    try:
-        resolved = target.resolve()
-        if not str(resolved).startswith(str(docs_dir.resolve())):
-            return []
-    except (OSError, ValueError):
-        return []
-
-    if not target.is_dir():
-        return []
-
+def _list_dir_entries(target: Path, is_alias_root: bool = False) -> list[dict[str, Any]]:
+    """List directory entries from a target path, shared by normal and alias listing."""
     files: list[dict[str, Any]] = []
     for item in sorted(target.iterdir()):
         if item.name.startswith("."):
@@ -58,19 +87,23 @@ def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
                 "size": 0,
                 "last_modified": item.stat().st_mtime if item.exists() else 0,
                 "is_folder": True,
+                "is_alias": is_alias_root,
             })
-        elif item.is_file() and item.suffix.lower() in (
-            ".md", ".markdown", ".txt", ".pdf", ".docx", ".hwp", ".hwpx", ".csv",
-            ".py", ".r", ".rmd", ".qmd",
-            ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml",
-            ".sh", ".bash", ".zsh",
-            ".html", ".css", ".xml", ".svg",
-            ".sql", ".toml", ".ini", ".cfg", ".conf", ".env",
-            ".tex", ".bib", ".rst",
-            ".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v", ".flv", ".wmv", ".3gp", ".ogv", ".ts",
-            ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".wma", ".opus", ".aiff", ".mid", ".midi", ".weba",
-            ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".tiff",
-        ):
+        elif item.is_file():
+            # Check if it's a macOS alias file pointing to an external folder
+            if _is_alias_file(item):
+                alias_target = _resolve_macos_alias(item)
+                if alias_target:
+                    files.append({
+                        "filename": item.name,
+                        "size": 0,
+                        "last_modified": item.stat().st_mtime,
+                        "is_folder": True,
+                        "is_alias": True,
+                        "alias_target": str(alias_target),
+                    })
+                    continue
+
             try:
                 stat = item.stat()
                 files.append({
@@ -78,35 +111,118 @@ def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
                     "size": stat.st_size,
                     "last_modified": stat.st_mtime,
                     "is_folder": False,
+                    "is_alias": False,
                 })
             except OSError:
                 continue
     return files
 
 
-def read_doc(project_name: str, filename: str) -> str | None:
-    """Read a markdown file from a project's docs/ directory."""
+def _is_alias_file(path: Path) -> bool:
+    """Check if a file is a macOS Finder alias."""
+    try:
+        if not path.is_file() or path.stat().st_size > 10_000:
+            return False
+        # Use macOS `file` command to detect alias files
+        result = subprocess.run(
+            ["file", "--brief", str(path)],
+            capture_output=True, text=True, timeout=3,
+        )
+        if result.returncode == 0 and "MacOS Alias" in result.stdout:
+            return True
+    except (subprocess.TimeoutExpired, OSError):
+        pass
+    # Fallback: name heuristic
+    return path.name.endswith(" alias")
+
+
+BROWSABLE_EXTENSIONS = {
+    ".md", ".markdown", ".txt", ".pdf", ".docx", ".hwp", ".hwpx", ".csv",
+    ".py", ".r", ".rmd", ".qmd",
+    ".js", ".ts", ".jsx", ".tsx", ".json", ".yaml", ".yml",
+    ".sh", ".bash", ".zsh",
+    ".html", ".css", ".xml", ".svg",
+    ".sql", ".toml", ".ini", ".cfg", ".conf", ".env",
+    ".tex", ".bib", ".rst",
+    ".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v", ".flv", ".wmv", ".3gp", ".ogv", ".ts",
+    ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".wma", ".opus", ".aiff", ".mid", ".midi", ".weba",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico", ".tiff",
+}
+
+
+def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
+    """List files in a project's docs/ directory (with optional subfolder).
+    Supports macOS Finder alias files that point to external volumes."""
+    project_path = _find_project_path(project_name)
+    if project_path is None:
+        return []
+
+    docs_dir = project_path / "docs"
+
+    # Check if subpath navigates through an alias
+    if subpath:
+        alias_target = _resolve_alias_in_path(docs_dir, subpath)
+        if alias_target and alias_target.is_dir():
+            return _list_dir_entries(alias_target, is_alias_root=True)
+
+    target = docs_dir / subpath if subpath else docs_dir
+
+    # Security check for non-alias paths
+    try:
+        resolved = target.resolve()
+        if not str(resolved).startswith(str(docs_dir.resolve())):
+            return []
+    except (OSError, ValueError):
+        return []
+
+    if not target.is_dir():
+        return []
+
+    return _list_dir_entries(target)
+
+
+def _resolve_file_path(project_name: str, filename: str) -> Path | None:
+    """Resolve a file path, handling alias folders. Returns the real Path or None."""
     project_path = _find_project_path(project_name)
     if project_path is None:
         return None
 
-    filepath = project_path / "docs" / filename
-    # Security: prevent path traversal
+    docs_dir = project_path / "docs"
+
+    # Check if path goes through an alias folder
+    alias_target = _resolve_alias_in_path(docs_dir, filename)
+    if alias_target and alias_target.is_file():
+        return alias_target
+
+    # Normal path resolution
+    filepath = docs_dir / filename
     try:
         filepath = filepath.resolve()
-        docs_dir = (project_path / "docs").resolve()
-        if not str(filepath).startswith(str(docs_dir)):
+        resolved_docs = docs_dir.resolve()
+        if not str(filepath).startswith(str(resolved_docs)):
             return None
     except (OSError, ValueError):
         return None
 
     if not filepath.is_file():
         return None
+    return filepath
 
-    try:
-        return filepath.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
+
+def read_doc(project_name: str, filename: str) -> str | None:
+    """Read a text file from a project's docs/ directory."""
+    filepath = _resolve_file_path(project_name, filename)
+    if filepath is None:
         return None
+
+    for enc in ("utf-8", "euc-kr", "cp949", "utf-16", "latin-1"):
+        try:
+            return filepath.read_text(encoding=enc)
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except OSError:
+            return None
+    return None
 
 
 BINARY_EXTENSIONS = {
@@ -118,44 +234,51 @@ BINARY_EXTENSIONS = {
 
 
 def read_doc_binary(project_name: str, filename: str) -> Path | None:
-    """Return the resolved file path for a binary document (PDF/DOCX)."""
-    project_path = _find_project_path(project_name)
-    if project_path is None:
+    """Return the resolved file path for a binary document."""
+    filepath = _resolve_file_path(project_name, filename)
+    if filepath is None:
         return None
 
-    filepath = project_path / "docs" / filename
-    try:
-        filepath = filepath.resolve()
-        docs_dir = (project_path / "docs").resolve()
-        if not str(filepath).startswith(str(docs_dir)):
-            return None
-    except (OSError, ValueError):
-        return None
-
-    if not filepath.is_file() or filepath.suffix.lower() not in BINARY_EXTENSIONS:
+    if filepath.suffix.lower() not in BINARY_EXTENSIONS:
         return None
 
     return filepath
 
 
-def write_doc(project_name: str, filename: str, content: str) -> dict[str, Any]:
-    """Write/update a markdown file in a project's docs/ directory."""
+def _resolve_writable_path(project_name: str, filename: str) -> Path | None:
+    """Resolve a writable file path, handling alias folders."""
     project_path = _find_project_path(project_name)
     if project_path is None:
-        return {"success": False, "message": "Project not found"}
+        return None
 
     docs_dir = project_path / "docs"
-    docs_dir.mkdir(parents=True, exist_ok=True)
 
+    # Check if path goes through an alias folder
+    alias_target = _resolve_alias_in_path(docs_dir, filename)
+    if alias_target:
+        # Verify the parent dir is under an allowed alias target
+        parent = alias_target.parent if not alias_target.is_dir() else alias_target
+        if any(str(parent).startswith(p) for p in ALLOWED_ALIAS_TARGETS):
+            return alias_target
+
+    # Normal path
+    docs_dir.mkdir(parents=True, exist_ok=True)
     filepath = docs_dir / filename
-    # Security: prevent path traversal
     try:
         filepath = filepath.resolve()
         resolved_docs = docs_dir.resolve()
         if not str(filepath).startswith(str(resolved_docs)):
-            return {"success": False, "message": "Invalid filename"}
+            return None
     except (OSError, ValueError):
-        return {"success": False, "message": "Invalid filename"}
+        return None
+    return filepath
+
+
+def write_doc(project_name: str, filename: str, content: str) -> dict[str, Any]:
+    """Write/update a markdown file in a project's docs/ directory."""
+    filepath = _resolve_writable_path(project_name, filename)
+    if filepath is None:
+        return {"success": False, "message": "Project not found or invalid path"}
 
     try:
         filepath.parent.mkdir(parents=True, exist_ok=True)
@@ -277,21 +400,8 @@ def rename_doc(project_name: str, old_path: str, new_name: str) -> dict[str, Any
 
 def delete_doc(project_name: str, filename: str) -> dict[str, Any]:
     """Delete a file from a project's docs/ directory."""
-    project_path = _find_project_path(project_name)
-    if project_path is None:
-        return {"success": False, "message": "Project not found"}
-
-    filepath = project_path / "docs" / filename
-    # Security: prevent path traversal
-    try:
-        filepath = filepath.resolve()
-        docs_dir = (project_path / "docs").resolve()
-        if not str(filepath).startswith(str(docs_dir)):
-            return {"success": False, "message": "Invalid filename"}
-    except (OSError, ValueError):
-        return {"success": False, "message": "Invalid filename"}
-
-    if not filepath.is_file():
+    filepath = _resolve_file_path(project_name, filename)
+    if filepath is None:
         return {"success": False, "message": "File not found"}
 
     try:
@@ -344,7 +454,8 @@ def move_quicknote_to_project(
 
 
 def list_doc_folders(project_name: str) -> list[str]:
-    """Recursively list all subfolder paths under a project's docs/ directory in depth-first sorted order."""
+    """Recursively list all subfolder paths under a project's docs/ directory in depth-first sorted order.
+    Includes macOS alias folders (shallow: only top-level alias, not recursive)."""
     project_path = _find_project_path(project_name)
     if project_path is None:
         return []
@@ -355,18 +466,32 @@ def list_doc_folders(project_name: str) -> list[str]:
 
     folders: list[str] = [""]  # root = ""
 
-    def _scan(parent: Path, prefix: str) -> None:
+    def _scan(parent: Path, prefix: str, max_depth: int = 50) -> None:
+        if max_depth <= 0:
+            return
         try:
-            children = sorted(
-                [d for d in parent.iterdir() if d.is_dir() and not d.name.startswith(".")],
-                key=lambda p: p.name,
-            )
+            children = sorted(parent.iterdir(), key=lambda p: p.name)
         except OSError:
             return
         for child in children:
-            rel = f"{prefix}/{child.name}" if prefix else child.name
-            folders.append(rel)
-            _scan(child, rel)
+            if child.name.startswith("."):
+                continue
+            if child.is_dir():
+                rel = f"{prefix}/{child.name}" if prefix else child.name
+                folders.append(rel)
+                _scan(child, rel, max_depth - 1)
+            elif child.is_file() and _is_alias_file(child):
+                alias_target = _resolve_macos_alias(child)
+                if alias_target:
+                    rel = f"{prefix}/{child.name}" if prefix else child.name
+                    folders.append(rel)
+                    # Shallow scan alias targets (1 level only to avoid huge trees)
+                    try:
+                        for sub in sorted(alias_target.iterdir()):
+                            if sub.is_dir() and not sub.name.startswith("."):
+                                folders.append(f"{rel}/{sub.name}")
+                    except OSError:
+                        pass
 
     _scan(docs_dir, "")
     return folders

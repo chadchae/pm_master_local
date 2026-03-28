@@ -154,7 +154,7 @@ export default function IdeasPage() {
         body: JSON.stringify({
           project_name: name,
           from_stage: "1_idea_stage",
-          to_stage: "7_discarded",
+          to_stage: "9_discarded",
         }),
       });
       setIdeas((prev) => prev.filter((p) => p.name !== name));
@@ -168,7 +168,7 @@ export default function IdeasPage() {
 
   const discardIdea = (name: string) => {
     setConfirmDialog({
-      message: `Discard "${name}"? (moves to 7_discarded)`,
+      message: `Discard "${name}"? (moves to 9_discarded)`,
       onConfirm: () => {
         setConfirmDialog(null);
         doDiscardIdea(name);

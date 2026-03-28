@@ -27,6 +27,7 @@ import {
   BarChart3,
   CalendarDays,
   Map,
+  GraduationCap,
 } from "lucide-react";
 import { PasswordChangeModal } from "./PasswordChangeModal";
 import { QuickNotePanel } from "./QuickNotePanel";
@@ -45,6 +46,7 @@ interface NavItemDef {
 
 const NAV_ITEMS: NavItemDef[] = [
   { labelKey: "sidebar.dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { labelKey: "sidebar.research", href: "/dashboard/research", icon: GraduationCap },
   { labelKey: "sidebar.ideas", href: "/dashboard/ideas", icon: Lightbulb },
   { labelKey: "sidebar.projects", href: "/dashboard/projects", icon: FolderKanban },
   { labelKey: "sidebar.plans", href: "/dashboard/plans", icon: Map },
@@ -99,7 +101,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-semibold text-neutral-900 dark:text-white truncate">
-                {process.env.NEXT_PUBLIC_APP_NAME || "PM Master Local"} <span className="text-[10px] font-normal text-neutral-400">v2.2.0</span>
+                {process.env.NEXT_PUBLIC_APP_NAME || "PM Master Local"} <span className="text-[10px] font-normal text-neutral-400">v2.3.0</span>
               </span>
               <a href="mailto:chadchae@gmail.com" className="text-[10px] text-neutral-400 hover:text-indigo-400 transition-colors truncate leading-tight">
                 chadchae@gmail.com

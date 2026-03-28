@@ -65,6 +65,24 @@ export const STAGES: StageConfig[] = [
     textColor: "text-neutral-600 dark:text-neutral-400",
     borderColor: "border-neutral-300 dark:border-neutral-600",
   },
+  {
+    folder: "7_series",
+    label: "Series",
+    sublabel: "Ongoing",
+    color: "teal",
+    bgColor: "bg-teal-50 dark:bg-teal-950",
+    textColor: "text-teal-700 dark:text-teal-300",
+    borderColor: "border-teal-300 dark:border-teal-700",
+  },
+  {
+    folder: "8_operation",
+    label: "Operation",
+    sublabel: "Local/Operation",
+    color: "orange",
+    bgColor: "bg-orange-50 dark:bg-orange-950",
+    textColor: "text-orange-700 dark:text-orange-300",
+    borderColor: "border-orange-300 dark:border-orange-700",
+  },
 ];
 
 // Kanban stages: exclude idea stage (ideas have their own page)

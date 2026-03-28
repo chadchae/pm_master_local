@@ -73,7 +73,7 @@ export function TodoPanel({ open, onClose }: TodoPanelProps) {
       const seen = new Set<string>();
       const deduped = (projRes.projects || []).filter((p) => {
         if (seen.has(p.name)) return false;
-        if (p.stage === "7_discarded") return false;
+        if (p.stage === "9_discarded") return false;
         seen.add(p.name);
         return true;
       });

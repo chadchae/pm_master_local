@@ -273,7 +273,7 @@ export default function PeoplePage() {
       setPeople(peopleData.people);
       setAllProjectLabels(
         projectsData.projects
-          .filter((p) => !["5_completed", "6_archived", "7_discarded"].includes(p.stage))
+          .filter((p) => !["5_completed", "6_archived", "9_discarded"].includes(p.stage))
           .map((p) => p.metadata?.label || p.name)
           .sort()
       );

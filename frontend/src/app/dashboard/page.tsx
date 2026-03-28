@@ -4,7 +4,7 @@ import { useEffect, useState, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, Project, ServerStatus } from "@/lib/api";
 import { STAGES, KANBAN_STAGES, getStageBadgeClasses, getStageByFolder } from "@/lib/stages";
-import { FolderKanban, Server, Layers, Loader2, GripVertical, Lightbulb, LayoutGrid, List, Clock, Pencil, Trash2, Download, Plus, X, Copy, ListTodo } from "lucide-react";
+import { FolderKanban, Server, Layers, Loader2, GripVertical, Lightbulb, LayoutGrid, List, Clock, Pencil, Trash2, Download, Plus, X, Copy, ListTodo, Globe, Github, HardDrive } from "lucide-react";
 import { MetaTags } from "@/components/MetaTags";
 import { ProgressBar } from "@/components/ProgressBar";
 import { MoveProjectModal } from "@/components/MoveProjectModal";
@@ -221,7 +221,7 @@ export default function DashboardPage() {
     if (p.stage === "1_idea_stage") return false;
     if (typeFilters.size > 0 && !typeFilters.has(p.metadata?.["유형"] || "")) return false;
     if (collabFilter === "collaboration" && p.metadata?.["협업"] !== "collaboration") return false;
-    if (collabFilter === "personal" && p.metadata?.["협업"] !== "personal") return false;
+    if (collabFilter === "personal" && p.metadata?.["협업"] !== "personal" && p.metadata?.["주도"] !== "lead" && p.metadata?.["오너"] !== "채충일") return false;
     return true;
   });
   const ideaCount = projects.filter((p) => p.stage === "1_idea_stage").length;
@@ -870,6 +870,42 @@ export default function DashboardPage() {
                             })()}
                           </div>
                         </div>
+                        {/* External link icons — bottom right, always visible */}
+                        <div className="flex items-center justify-end gap-0.5 mt-1.5">
+                          {project.metadata?.gdrive_url ? (
+                            <a href={project.metadata.gdrive_url} target="_blank" rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-0.5 text-green-500 hover:text-green-600 transition-colors" title="Google Drive">
+                              <HardDrive className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="p-0.5 text-neutral-200 dark:text-neutral-700 cursor-default" title="Google Drive (미설정)">
+                              <HardDrive className="w-3 h-3" />
+                            </span>
+                          )}
+                          {project.metadata?.github_url ? (
+                            <a href={project.metadata.github_url} target="_blank" rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-0.5 text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors" title="GitHub">
+                              <Github className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="p-0.5 text-neutral-200 dark:text-neutral-700 cursor-default" title="GitHub (미설정)">
+                              <Github className="w-3 h-3" />
+                            </span>
+                          )}
+                          {project.metadata?.github_pages_url ? (
+                            <a href={project.metadata.github_pages_url} target="_blank" rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-0.5 text-blue-500 hover:text-blue-600 transition-colors" title="GitHub Pages">
+                              <Globe className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="p-0.5 text-neutral-200 dark:text-neutral-700 cursor-default" title="GitHub Pages (미설정)">
+                              <Globe className="w-3 h-3" />
+                            </span>
+                          )}
+                        </div>
                         {/* Action buttons */}
                         <div className={`flex items-center gap-1 mt-2 pt-1.5 border-t ${theme.cardBorder} opacity-0 group-hover:opacity-100 transition-opacity`}>
                           <button
@@ -926,7 +962,7 @@ export default function DashboardPage() {
                                 onConfirm: () => {
                                   apiFetch(`/api/projects/move`, {
                                     method: "POST",
-                                    body: JSON.stringify({ project_name: project.name, from_stage: project.stage, to_stage: "7_discarded", instruction: "" }),
+                                    body: JSON.stringify({ project_name: project.name, from_stage: project.stage, to_stage: "9_discarded", instruction: "" }),
                                   }).then(() => { loadData(); toast.success("Moved to trash"); }).catch(() => toast.error("Failed"));
                                   setConfirmDialog(null);
                                 },
@@ -1205,7 +1241,7 @@ export default function DashboardPage() {
                                   setConfirmDialog(null);
                                   apiFetch("/api/projects/move", {
                                     method: "POST",
-                                    body: JSON.stringify({ project_name: project.name, from_stage: project.stage, to_stage: "7_discarded", instruction: "" }),
+                                    body: JSON.stringify({ project_name: project.name, from_stage: project.stage, to_stage: "9_discarded", instruction: "" }),
                                   }).then(() => { loadData(); toast.success("Moved to trash"); }).catch(() => toast.error("Failed"));
                                 },
                               });

@@ -27,7 +27,7 @@ export default function TrashPage() {
     try {
       const res = await apiFetch<{ projects: Project[] }>("/api/projects");
       setItems(
-        (res.projects || []).filter((p) => p.stage === "7_discarded")
+        (res.projects || []).filter((p) => p.stage === "9_discarded")
       );
     } catch {
       toast.error(t("toast.failedToLoadTrash"));

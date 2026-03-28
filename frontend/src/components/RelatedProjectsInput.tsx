@@ -18,7 +18,7 @@ const STAGE_COLORS: Record<string, string> = {
   "4_in_testing": "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
   "5_completed": "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400",
   "6_archived": "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500",
-  "7_discarded": "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
+  "9_discarded": "bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-400",
 };
 
 export function RelatedProjectsInput({
@@ -34,7 +34,7 @@ export function RelatedProjectsInput({
     apiFetch<{ projects: Project[] }>("/api/projects")
       .then((res) => {
         const sorted = (res.projects || [])
-          .filter((p) => p.stage !== "7_discarded")
+          .filter((p) => p.stage !== "9_discarded")
           .sort((a, b) => a.name.localeCompare(b.name));
         setProjects(sorted);
       })
