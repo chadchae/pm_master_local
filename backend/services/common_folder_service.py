@@ -37,7 +37,7 @@ def list_files_at(folder_type: str, subpath: str = "") -> list[dict[str, Any]]:
     # Security: path traversal check
     try:
         resolved = target.resolve()
-        if not str(resolved).startswith(str(folder_path.resolve())):
+        if not resolved.is_relative_to(folder_path.resolve()):
             return []
     except (OSError, ValueError):
         return []
@@ -137,7 +137,7 @@ def read_file(folder_type: str, filename: str) -> str | None:
     try:
         filepath = filepath.resolve()
         resolved_folder = folder_path.resolve()
-        if not str(filepath).startswith(str(resolved_folder)):
+        if not filepath.is_relative_to(resolved_folder):
             return None
     except (OSError, ValueError):
         return None
@@ -165,7 +165,7 @@ def write_file(folder_type: str, filename: str, content: str) -> dict[str, Any]:
     try:
         filepath = filepath.resolve()
         resolved_folder = folder_path.resolve()
-        if not str(filepath).startswith(str(resolved_folder)):
+        if not filepath.is_relative_to(resolved_folder):
             return {"success": False, "message": "Invalid filename"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid filename"}
@@ -189,7 +189,7 @@ def create_subfolder(folder_type: str, subfolder_name: str) -> dict[str, Any]:
     target = folder_path / subfolder_name
     try:
         resolved = target.resolve()
-        if not str(resolved).startswith(str(folder_path.resolve())):
+        if not resolved.is_relative_to(folder_path.resolve()):
             return {"success": False, "message": "Invalid folder name"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid folder name"}
@@ -215,7 +215,7 @@ def delete_subfolder(folder_type: str, subfolder_name: str) -> dict[str, Any]:
     try:
         resolved = target.resolve()
         base = folder_path.resolve()
-        if not str(resolved).startswith(str(base)) or resolved == base:
+        if not resolved.is_relative_to(base) or resolved == base:
             return {"success": False, "message": "Invalid folder name"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid folder name"}
@@ -241,7 +241,7 @@ def delete_file(folder_type: str, filename: str) -> dict[str, Any]:
     try:
         filepath = filepath.resolve()
         resolved_folder = folder_path.resolve()
-        if not str(filepath).startswith(str(resolved_folder)):
+        if not filepath.is_relative_to(resolved_folder):
             return {"success": False, "message": "Invalid filename"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid filename"}
@@ -308,7 +308,7 @@ def read_quicknote(filename: str) -> dict[str, Any]:
     """Read a quick note's content from _notes/_temp/."""
     temp_path = PROJECTS_ROOT / "_notes" / "_temp"
     filepath = (temp_path / filename).resolve()
-    if not str(filepath).startswith(str(temp_path.resolve())) or not filepath.is_file():
+    if not filepath.is_relative_to(temp_path.resolve()) or not filepath.is_file():
         return {"success": False, "message": "File not found"}
     try:
         content = filepath.read_text(encoding="utf-8")
@@ -321,7 +321,7 @@ def update_quicknote(filename: str, content: str) -> dict[str, Any]:
     """Update a quick note's content in _notes/_temp/."""
     temp_path = PROJECTS_ROOT / "_notes" / "_temp"
     filepath = (temp_path / filename).resolve()
-    if not str(filepath).startswith(str(temp_path.resolve())) or not filepath.is_file():
+    if not filepath.is_relative_to(temp_path.resolve()) or not filepath.is_file():
         return {"success": False, "message": "File not found"}
     try:
         filepath.write_text(content, encoding="utf-8")
@@ -336,7 +336,7 @@ def delete_quicknote(filename: str) -> dict[str, Any]:
     filepath = (temp_path / filename).resolve()
     resolved_temp = temp_path.resolve()
 
-    if not str(filepath).startswith(str(resolved_temp)):
+    if not filepath.is_relative_to(resolved_temp):
         return {"success": False, "message": "Invalid filename"}
 
     if not filepath.is_file():
@@ -393,7 +393,7 @@ def create_project_memo(title: str, content: str) -> dict[str, Any]:
 def read_project_memo(filename: str) -> dict[str, Any]:
     """Read a project memo's content."""
     filepath = (_PROJECT_MEMO_DIR / filename).resolve()
-    if not str(filepath).startswith(str(_PROJECT_MEMO_DIR.resolve())) or not filepath.is_file():
+    if not filepath.is_relative_to(_PROJECT_MEMO_DIR.resolve()) or not filepath.is_file():
         return {"success": False, "message": "File not found"}
     try:
         return {"success": True, "filename": filename, "content": filepath.read_text(encoding="utf-8")}
@@ -404,7 +404,7 @@ def read_project_memo(filename: str) -> dict[str, Any]:
 def update_project_memo(filename: str, content: str) -> dict[str, Any]:
     """Update a project memo's content."""
     filepath = (_PROJECT_MEMO_DIR / filename).resolve()
-    if not str(filepath).startswith(str(_PROJECT_MEMO_DIR.resolve())) or not filepath.is_file():
+    if not filepath.is_relative_to(_PROJECT_MEMO_DIR.resolve()) or not filepath.is_file():
         return {"success": False, "message": "File not found"}
     try:
         filepath.write_text(content, encoding="utf-8")
@@ -416,7 +416,7 @@ def update_project_memo(filename: str, content: str) -> dict[str, Any]:
 def delete_project_memo(filename: str) -> dict[str, Any]:
     """Delete a project memo."""
     filepath = (_PROJECT_MEMO_DIR / filename).resolve()
-    if not str(filepath).startswith(str(_PROJECT_MEMO_DIR.resolve())) or not filepath.is_file():
+    if not filepath.is_relative_to(_PROJECT_MEMO_DIR.resolve()) or not filepath.is_file():
         return {"success": False, "message": "File not found"}
     try:
         filepath.unlink()
@@ -431,11 +431,11 @@ def move_quicknote(filename: str, target_file: str) -> dict[str, Any]:
     notes_path = PROJECTS_ROOT / "_notes"
 
     src = (temp_path / filename).resolve()
-    if not str(src).startswith(str(temp_path.resolve())) or not src.is_file():
+    if not src.is_relative_to(temp_path.resolve()) or not src.is_file():
         return {"success": False, "message": "Source file not found"}
 
     dst = (notes_path / target_file).resolve()
-    if not str(dst).startswith(str(notes_path.resolve())):
+    if not dst.is_relative_to(notes_path.resolve()):
         return {"success": False, "message": "Invalid target file"}
 
     try:

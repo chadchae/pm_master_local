@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { useParams } from "next/navigation";
 import { apiFetch, FileItem } from "@/lib/api";
 import {

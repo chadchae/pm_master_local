@@ -1020,15 +1020,14 @@ export default function ProjectDetailPage() {
 
   const loadProject = async () => {
     try {
-      const [projectsRes, docsRes] = await Promise.all([
-        apiFetch<{ projects: Project[] }>("/api/projects"),
+      const [projectRes, docsRes, allProjectsRes] = await Promise.all([
+        apiFetch<{ project: Project }>(`/api/projects/${encodeURIComponent(name)}`),
         apiFetch<{ docs: FileItem[] }>(`/api/projects/${encodeURIComponent(name)}/docs`).catch(() => ({ docs: [] })),
+        apiFetch<{ projects: Project[] }>("/api/projects"),
       ]);
-      const allProjects = projectsRes.projects || [];
-      const proj = allProjects.find((p) => p.name === name);
-      setProject(proj || null);
+      setProject(projectRes.project || null);
       const PREDEFINED_TYPES = ["개인", "연구", "개발", "리뷰", "리딩", "학습", "강의", "기획", "운영", "관리", "협업", "사업"];
-      const dynamicTypes = allProjects.map((p) => p.metadata?.["유형"] || "").filter(Boolean);
+      const dynamicTypes = (allProjectsRes.projects || []).map((p) => p.metadata?.["유형"] || "").filter(Boolean);
       setAllTypes([...new Set([...PREDEFINED_TYPES, ...dynamicTypes])].sort());
       setDocs(docsRes.docs || []);
       loadSummary();

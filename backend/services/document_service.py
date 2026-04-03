@@ -170,7 +170,7 @@ def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
     # Security check for non-alias paths
     try:
         resolved = target.resolve()
-        if not str(resolved).startswith(str(docs_dir.resolve())):
+        if not resolved.is_relative_to(docs_dir.resolve()):
             return []
     except (OSError, ValueError):
         return []
@@ -199,7 +199,7 @@ def _resolve_file_path(project_name: str, filename: str) -> Path | None:
     try:
         filepath = filepath.resolve()
         resolved_docs = docs_dir.resolve()
-        if not str(filepath).startswith(str(resolved_docs)):
+        if not filepath.is_relative_to(resolved_docs):
             return None
     except (OSError, ValueError):
         return None
@@ -267,7 +267,7 @@ def _resolve_writable_path(project_name: str, filename: str) -> Path | None:
     try:
         filepath = filepath.resolve()
         resolved_docs = docs_dir.resolve()
-        if not str(filepath).startswith(str(resolved_docs)):
+        if not filepath.is_relative_to(resolved_docs):
             return None
     except (OSError, ValueError):
         return None
@@ -298,7 +298,7 @@ def create_folder(project_name: str, folder_name: str) -> dict[str, Any]:
     try:
         resolved = folder_path.resolve()
         docs_dir = (project_path / "docs").resolve()
-        if not str(resolved).startswith(str(docs_dir)):
+        if not resolved.is_relative_to(docs_dir):
             return {"success": False, "message": "Invalid folder name"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid folder name"}
@@ -324,7 +324,7 @@ def delete_folder(project_name: str, folder_name: str) -> dict[str, Any]:
     try:
         resolved = folder_path.resolve()
         docs_dir = (project_path / "docs").resolve()
-        if not str(resolved).startswith(str(docs_dir)) or resolved == docs_dir:
+        if not resolved.is_relative_to(docs_dir) or resolved == docs_dir:
             return {"success": False, "message": "Invalid folder name"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid folder name"}
@@ -348,11 +348,11 @@ def move_doc(project_name: str, src_path: str, dest_folder: str) -> dict[str, An
 
     docs_dir = (project_path / "docs").resolve()
     src = (project_path / "docs" / src_path).resolve()
-    if not str(src).startswith(str(docs_dir)) or src == docs_dir or not src.exists():
+    if not src.is_relative_to(docs_dir) or src == docs_dir or not src.exists():
         return {"success": False, "message": "Source not found"}
 
     dst_dir = (project_path / "docs" / dest_folder).resolve() if dest_folder else docs_dir
-    if not str(dst_dir).startswith(str(docs_dir)):
+    if not dst_dir.is_relative_to(docs_dir):
         return {"success": False, "message": "Invalid destination"}
     dst_dir.mkdir(parents=True, exist_ok=True)
 
@@ -360,7 +360,7 @@ def move_doc(project_name: str, src_path: str, dest_folder: str) -> dict[str, An
     if dst.exists():
         return {"success": False, "message": f"{src.name} already exists in destination"}
     # Prevent moving a folder into itself
-    if src.is_dir() and str(dst_dir).startswith(str(src)):
+    if src.is_dir() and dst_dir.is_relative_to(src):
         return {"success": False, "message": "Cannot move folder into itself"}
 
     try:
@@ -378,7 +378,7 @@ def rename_doc(project_name: str, old_path: str, new_name: str) -> dict[str, Any
 
     docs_dir = (project_path / "docs").resolve()
     src = (project_path / "docs" / old_path).resolve()
-    if not str(src).startswith(str(docs_dir)) or src == docs_dir:
+    if not src.is_relative_to(docs_dir) or src == docs_dir:
         return {"success": False, "message": "Invalid path"}
     if not src.exists():
         return {"success": False, "message": "Not found"}
@@ -417,7 +417,7 @@ def move_quicknote_to_project(
     """Move a project memo from _project_memo/ to a project's docs/ folder as a standalone file."""
     temp_path = Path(os.path.expanduser("~/Projects/_notes/_project_memo"))
     src = (temp_path / filename).resolve()
-    if not str(src).startswith(str(temp_path.resolve())) or not src.is_file():
+    if not src.is_relative_to(temp_path.resolve()) or not src.is_file():
         return {"success": False, "message": "Source file not found"}
 
     project_path = _find_project_path(project_name)
@@ -430,7 +430,7 @@ def move_quicknote_to_project(
 
     try:
         resolved = dest_dir.resolve()
-        if not str(resolved).startswith(str(docs_dir.resolve())):
+        if not resolved.is_relative_to(docs_dir.resolve()):
             return {"success": False, "message": "Invalid target folder"}
     except (OSError, ValueError):
         return {"success": False, "message": "Invalid target folder"}

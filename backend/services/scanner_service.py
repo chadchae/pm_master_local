@@ -966,7 +966,7 @@ def delete_project(project_name: str) -> dict[str, Any]:
     # Security: verify it's actually in 9_discarded
     resolved = project_path.resolve()
     discarded_root = (PROJECTS_ROOT / "9_discarded").resolve()
-    if not str(resolved).startswith(str(discarded_root)):
+    if not resolved.is_relative_to(discarded_root):
         return {"success": False, "message": "Invalid project path"}
 
     # Read project label before deletion to clean up people references

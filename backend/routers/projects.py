@@ -47,6 +47,16 @@ def list_projects():
     return {"projects": projects}
 
 
+@router.get("/projects/{project_name}")
+def get_project(project_name: str):
+    """Return metadata for a single project without scanning all projects."""
+    projects = scanner_service.scan_projects()
+    project = next((p for p in projects if p["name"] == project_name), None)
+    if project is None:
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_name}")
+    return {"project": project}
+
+
 @router.delete("/projects/{project_name}")
 def delete_project(project_name: str):
     """Permanently delete a project folder (only from 9_discarded)."""
