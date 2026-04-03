@@ -269,7 +269,7 @@ def get_project_summary(project_name: str):
 @router.get("/projects/{project_name}/download")
 def download_project(project_name: str):
     """Download a project as a zip file."""
-    project_path = scanner_service._find_project_path(project_name)
+    project_path = scanner_service.find_project_path(project_name)
     if project_path is None:
         raise HTTPException(status_code=404, detail="Project not found")
 

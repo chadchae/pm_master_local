@@ -4,6 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 from typing import Any
+from services.scanner_service import find_project_path, PROJECTS_ROOT as _SCANNER_PROJECTS_ROOT
 
 PROJECTS_ROOT = Path(os.environ.get("PROJECTS_ROOT", os.path.expanduser("~/Projects")))
 
@@ -66,13 +67,7 @@ STAGE_PREFIXES = [
 ]
 
 
-def _find_project_path(project_name: str) -> Path | None:
-    """Find a project by name across all stage folders."""
-    for stage in STAGE_PREFIXES:
-        candidate = PROJECTS_ROOT / stage / project_name
-        if candidate.is_dir():
-            return candidate
-    return None
+
 
 
 def _list_dir_entries(target: Path, is_alias_root: bool = False) -> list[dict[str, Any]]:
@@ -153,7 +148,7 @@ BROWSABLE_EXTENSIONS = {
 def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
     """List files in a project's docs/ directory (with optional subfolder).
     Supports macOS Finder alias files that point to external volumes."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return []
 
@@ -183,7 +178,7 @@ def list_docs(project_name: str, subpath: str = "") -> list[dict[str, Any]]:
 
 def _resolve_file_path(project_name: str, filename: str) -> Path | None:
     """Resolve a file path, handling alias folders. Returns the real Path or None."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return None
 
@@ -247,7 +242,7 @@ def read_doc_binary(project_name: str, filename: str) -> Path | None:
 
 def _resolve_writable_path(project_name: str, filename: str) -> Path | None:
     """Resolve a writable file path, handling alias folders."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return None
 
@@ -290,7 +285,7 @@ def write_doc(project_name: str, filename: str, content: str) -> dict[str, Any]:
 
 def create_folder(project_name: str, folder_name: str) -> dict[str, Any]:
     """Create a subfolder in a project's docs/ directory."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found"}
 
@@ -316,7 +311,7 @@ def create_folder(project_name: str, folder_name: str) -> dict[str, Any]:
 def delete_folder(project_name: str, folder_name: str) -> dict[str, Any]:
     """Delete a subfolder from a project's docs/ directory."""
     import shutil
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found"}
 
@@ -342,7 +337,7 @@ def delete_folder(project_name: str, folder_name: str) -> dict[str, Any]:
 def move_doc(project_name: str, src_path: str, dest_folder: str) -> dict[str, Any]:
     """Move a file or folder to a different subfolder within docs/."""
     import shutil
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found"}
 
@@ -372,7 +367,7 @@ def move_doc(project_name: str, src_path: str, dest_folder: str) -> dict[str, An
 
 def rename_doc(project_name: str, old_path: str, new_name: str) -> dict[str, Any]:
     """Rename a file or folder in a project's docs/ directory."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found"}
 
@@ -420,7 +415,7 @@ def move_quicknote_to_project(
     if not src.is_relative_to(temp_path.resolve()) or not src.is_file():
         return {"success": False, "message": "Source file not found"}
 
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found"}
 
@@ -456,7 +451,7 @@ def move_quicknote_to_project(
 def list_doc_folders(project_name: str) -> list[str]:
     """Recursively list all subfolder paths under a project's docs/ directory in depth-first sorted order.
     Includes macOS alias folders (shallow: only top-level alias, not recursive)."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return []
 

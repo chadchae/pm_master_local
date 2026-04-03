@@ -20,7 +20,7 @@ from services.scanner_service import (
     COMMON_FOLDERS,
     PROJECTS_ROOT,
     STAGE_FOLDERS,
-    _find_project_path,
+    find_project_path,
     _read_project_yaml,
 )
 
@@ -101,7 +101,7 @@ def generate_meta(project_name: str) -> dict[str, Any]:
     Returns a dict with success status and details.
     """
     # a. Find project path
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 

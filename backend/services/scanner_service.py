@@ -356,7 +356,7 @@ def _scan_projects_uncached() -> list[dict[str, Any]]:
     return projects
 
 
-def _find_project_path(project_name: str) -> Path | None:
+def find_project_path(project_name: str) -> Path | None:
     """Find a project path across all stage folders.
 
     Prefer paths that have docs/_project.yaml or docs/_아이디어노트.md to avoid residual folders.
@@ -395,7 +395,7 @@ def update_metadata(project_name: str, updates: dict[str, str]) -> dict[str, Any
     Writes to docs/_project.yaml (pure YAML, no frontmatter wrapper).
     Auto-creates _project.yaml if missing.
     """
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 
@@ -598,7 +598,7 @@ def update_description(project_name: str, description: str) -> dict[str, Any]:
 
     Falls back to docs/_아이디어노트.md for old structure.
     """
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 
@@ -1333,7 +1333,7 @@ def clone_project(project_name: str) -> dict[str, Any]:
     """Clone a project: copy folder with 'copy-' prefix, label with '[COPY]' prefix."""
     import shutil
 
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 
@@ -1442,7 +1442,7 @@ def create_transition_note(
     project_name: str, from_stage: str, to_stage: str, instruction: str
 ) -> dict[str, Any]:
     """Create a work instruction note when project transitions between stages."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": "Project not found after move"}
 
@@ -1521,7 +1521,7 @@ def create_manual_instruction(
     project_name: str, instruction: str, checklist: list[str] | None = None
 ) -> dict[str, Any]:
     """Create a manual work instruction note (not from stage transition)."""
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 
@@ -1763,7 +1763,7 @@ def mark_instruction_done(
     if project_path_str:
         project_path = Path(project_path_str)
     else:
-        project_path = _find_project_path(project_name)
+        project_path = find_project_path(project_name)
     if project_path is None or not project_path.is_dir():
         return {"success": False, "message": "Project not found"}
 

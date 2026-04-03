@@ -108,7 +108,7 @@ class ExecuteInstructionRequest(BaseModel):
 @router.post("/work-instructions/execute")
 async def execute_instruction(body: ExecuteInstructionRequest):
     """Launch Claude Code in a new Terminal with the work instruction."""
-    project_path = scanner_service._find_project_path(body.project_name)
+    project_path = scanner_service.find_project_path(body.project_name)
     if project_path is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -311,7 +311,7 @@ def list_all_todos(include_done: int = 0):
                 items = [i for i in items if i.get("column") != "done"]
             if items:
                 # Resolve label and path
-                project_path = scanner_service._find_project_path(project_name)
+                project_path = scanner_service.find_project_path(project_name)
                 label = project_name
                 location = ""
                 if project_path:

@@ -6,6 +6,7 @@ import re
 import subprocess
 from pathlib import Path
 from typing import Any
+from services.scanner_service import find_project_path
 
 PROJECTS_ROOT = Path(os.environ.get("PROJECTS_ROOT", os.path.expanduser("~/Projects")))
 
@@ -24,13 +25,7 @@ STAGE_PREFIXES = [
 ]
 
 
-def _find_project_path(project_name: str) -> Path | None:
-    """Find a project by name across all stage folders."""
-    for stage in STAGE_PREFIXES:
-        candidate = PROJECTS_ROOT / stage / project_name
-        if candidate.is_dir():
-            return candidate
-    return None
+
 
 
 def _parse_port_from_metadata(project_path: Path) -> int | None:
@@ -245,7 +240,7 @@ async def run_server_command(
     if project_name == "pm-master-chad" and command in ("stop", "restart"):
         return {"success": False, "message": "Cannot stop PM Master Chad from its own UI"}
 
-    project_path = _find_project_path(project_name)
+    project_path = find_project_path(project_name)
     if project_path is None:
         return {"success": False, "message": f"Project not found: {project_name}"}
 
