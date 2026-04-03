@@ -20,6 +20,7 @@ const PeopleNetwork = dynamic(() => import("@/components/PeopleNetwork").then(m 
 
 import {
   PersonCard,
+  PersonDetailModal,
   PersonForm,
   PeopleFilter,
   PeopleListView,
@@ -56,6 +57,8 @@ export default function PeoplePage() {
   const [editHierarchy, setEditHierarchy] = useState("");
   // ConfirmDialog state for delete
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+  // Detail modal state
+  const [detailPerson, setDetailPerson] = useState<Person | null>(null);
 
   // Drag-and-drop state
   const [draggedPerson, setDraggedPerson] = useState<string | null>(null);
@@ -428,6 +431,7 @@ export default function PeoplePage() {
               onSaveEdit={(data) => handleUpdate(person.id, data)}
               onCancelEdit={() => setEditingId(null)}
               saving={saving}
+              onDoubleClick={() => setDetailPerson(person)}
               isDragged={draggedPerson === person.id}
               isDragOver={dragOverPerson === person.id}
               dragHandlers={{
@@ -594,6 +598,7 @@ export default function PeoplePage() {
                       onSaveEdit={(data) => handleUpdate(person.id, data)}
                       onCancelEdit={() => setEditingId(null)}
                       saving={saving}
+                      onDoubleClick={() => setDetailPerson(person)}
                     />
                   ))}
                 </div>
@@ -709,6 +714,15 @@ export default function PeoplePage() {
         onConfirm={() => { confirmDialog?.onConfirm(); }}
         onCancel={() => setConfirmDialog(null)}
       />
+
+      {detailPerson && (
+        <PersonDetailModal
+          person={detailPerson}
+          allPeople={orderedPeople.length > 0 ? orderedPeople : people}
+          onClose={() => setDetailPerson(null)}
+          onNavigate={(p) => setDetailPerson(p)}
+        />
+      )}
     </div>
   );
 }

@@ -89,7 +89,7 @@ PM Master Local manages a 7-stage lifecycle (Idea > Initiation > Development > T
 ### Global Features
 | Feature | Description |
 |---------|-------------|
-| People | Contact cards (name/org/role/expertise/relationship), connections, auto-generation from Related People |
+| People | Contact cards (name/org/role/expertise/relationship), connections, auto-generation from Related People; **double-click any card to open detail modal** (large photo, full info, prev/next navigation, keyboard arrows + Esc) |
 | Trash | Restore (to 1_idea_stage) / Permanent delete |
 | Server Control | start/stop/restart + log viewer (5s auto-refresh) |
 | Discussion Timeline | Scan all project `_discussion.md` files, monthly grouping, chronological |

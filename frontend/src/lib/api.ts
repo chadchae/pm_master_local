@@ -87,6 +87,9 @@ export interface ProjectMetadata {
   subtasks_total?: string;
   subtasks_done?: string;
   related_people?: string;  // Comma-separated names
+  gdrive_url?: string;
+  github_url?: string;
+  github_pages_url?: string;
 }
 
 export interface Project {

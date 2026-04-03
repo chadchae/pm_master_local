@@ -1,4 +1,5 @@
 export { PersonCard } from "./PersonCard";
+export { PersonDetailModal } from "./PersonDetailModal";
 export { PersonForm } from "./PersonForm";
 export { PeopleFilter } from "./PeopleFilter";
 export { PeopleListView } from "./PeopleListView";

@@ -35,6 +35,7 @@ export function PersonCard({
   dragHandlers,
   isDragged,
   isDragOver,
+  onDoubleClick,
 }: {
   person: Person;
   allPeople: Person[];
@@ -54,6 +55,7 @@ export function PersonCard({
   };
   isDragged?: boolean;
   isDragOver?: boolean;
+  onDoubleClick?: () => void;
 }) {
   const { t } = useLocale();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -103,6 +105,7 @@ export function PersonCard({
           : "border border-neutral-200 dark:border-neutral-700"
       }`}
       draggable
+      onDoubleClick={onDoubleClick}
       onDragStart={dragHandlers?.onDragStart}
       onDragEnd={dragHandlers?.onDragEnd}
       onDragOver={dragHandlers?.onDragOver}

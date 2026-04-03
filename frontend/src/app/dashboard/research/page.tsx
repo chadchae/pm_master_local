@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { STAGES, getStageBadgeClasses, getStageByFolder } from "@/lib/stages";
+import toast from "react-hot-toast";
+import { STAGES, getStageByFolder } from "@/lib/stages";
 import { PageHeader } from "@/components/PageHeader";
 import {
   GraduationCap, Github, HardDrive, Globe, Clock, Users,
   Plus, X, LayoutGrid, List, ChevronDown, ChevronRight,
+  Pencil, Trash2,
 } from "lucide-react";
 
 interface ResearchProject {
@@ -39,49 +41,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
 };
 
-function ProjectCard({ p }: { p: ResearchProject }) {
-  return (
-    <div className="bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 p-3 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm text-neutral-900 dark:text-white truncate">
-            {p.label || p.name}
-          </h3>
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-            {p.priority && p.priority !== "low" && (
-              <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${PRIORITY_COLORS[p.priority] || ""}`}>
-                {p.priority}
-              </span>
-            )}
-            {p.status && p.status !== "초기화" && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
-                {p.status.length > 12 ? p.status.slice(0, 12) + "…" : p.status}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3 mt-1.5 text-[11px] text-neutral-400">
-            {p.owner && <span className="flex items-center gap-0.5"><Users className="w-3 h-3" />{p.owner}</span>}
-            {p.deadline && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{p.deadline}</span>}
-          </div>
-        </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0">
-          <a href={p.pages} target="_blank" rel="noopener noreferrer"
-            className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-300 hover:text-blue-500 transition-colors" title="Web">
-            <Globe className="w-3.5 h-3.5" />
-          </a>
-          <a href={p.github} target="_blank" rel="noopener noreferrer"
-            className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition-colors" title="GitHub">
-            <Github className="w-3.5 h-3.5" />
-          </a>
-          <a href={p.gdrive} target="_blank" rel="noopener noreferrer"
-            className="p-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-300 hover:text-green-500 transition-colors" title="Drive">
-            <HardDrive className="w-3.5 h-3.5" />
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ProjectRow({ p, onClick }: { p: ResearchProject; onClick: () => void }) {
   const stageConfig = getStageByFolder(p.stage);
@@ -135,11 +94,14 @@ export default function ResearchPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newProject, setNewProject] = useState({
-    folder_name: "", label: "", description: "", stage: "1_idea_stage",
+    folder_name: "", label: "", description: "", stage: "2_initiation_stage",
     owner: "채충일", collaboration: "personal", role: "lead",
     importance: "3", urgency: "low", priority: "low", deadline: "",
     related_people: "", related_projects: "",
   });
+  const [editProject, setEditProject] = useState<ResearchProject | null>(null);
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [editSaving, setEditSaving] = useState(false);
 
   const loadData = () => {
     Promise.all([
@@ -161,6 +123,42 @@ export default function ResearchPage() {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const discardProject = async (p: ResearchProject) => {
+    if (!confirm(`"${p.label || p.name}"을(를) 휴지통으로 이동하시겠습니까?`)) return;
+    try {
+      await apiFetch("/api/projects/move", {
+        method: "POST",
+        body: JSON.stringify({ project_name: p.name, from_stage: p.stage, to_stage: "9_discarded" }),
+      });
+      toast.success(`"${p.label || p.name}" 휴지통으로 이동`);
+      loadData();
+    } catch { toast.error("이동 실패"); }
+  };
+
+  const openEdit = (p: ResearchProject) => {
+    setEditProject(p);
+    setEditForm({
+      label: p.label || "", "상태": p.status || "", "긴급도": p.priority || "low",
+      "협업": p.collaboration || "personal", "오너": p.owner || "",
+      "목표종료일": p.deadline || "", "related_people": p.people || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editProject) return;
+    setEditSaving(true);
+    try {
+      await apiFetch(`/api/projects/${encodeURIComponent(editProject.name)}/metadata`, {
+        method: "PUT",
+        body: JSON.stringify({ metadata: editForm }),
+      });
+      toast.success("수정 완료");
+      setEditProject(null);
+      loadData();
+    } catch { toast.error("수정 실패"); }
+    setEditSaving(false);
+  };
 
   // Drag handlers
   const handleDragStart = (e: React.DragEvent, project: ResearchProject) => {
@@ -290,7 +288,11 @@ export default function ResearchPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <PageHeader icon={GraduationCap} title="연구 프로젝트" description={`총 ${total}개`} />
+        <div className="flex items-center gap-3">
+          <GraduationCap className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-xl font-semibold text-neutral-900 dark:text-white">연구 프로젝트</h1>
+          <span className="text-sm text-neutral-400">총 {total}개</span>
+        </div>
         <div className="flex items-center gap-2">
           <div className="flex bg-neutral-100 dark:bg-neutral-800 rounded-lg p-0.5">
             <button onClick={() => setViewMode("kanban")}
@@ -452,9 +454,12 @@ export default function ResearchPage() {
                           {p.deadline && <span className="flex items-center gap-0.5"><Clock className="w-3 h-3" />{p.deadline.slice(5)}</span>}
                         </div>
                         <div className="flex items-center gap-0.5">
-                          <a href={p.pages} target="_blank" rel="noopener noreferrer" className="p-0.5 text-neutral-300 hover:text-blue-500"><Globe className="w-3 h-3" /></a>
-                          <a href={p.github} target="_blank" rel="noopener noreferrer" className="p-0.5 text-neutral-300 hover:text-neutral-700 dark:hover:text-white"><Github className="w-3 h-3" /></a>
-                          <a href={p.gdrive} target="_blank" rel="noopener noreferrer" className="p-0.5 text-neutral-300 hover:text-green-500"><HardDrive className="w-3 h-3" /></a>
+                          <a href={p.pages} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-0.5 text-neutral-300 hover:text-blue-500"><Globe className="w-3 h-3" /></a>
+                          <a href={p.github} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-0.5 text-neutral-300 hover:text-neutral-700 dark:hover:text-white"><Github className="w-3 h-3" /></a>
+                          <a href={p.gdrive} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-0.5 text-neutral-300 hover:text-green-500"><HardDrive className="w-3 h-3" /></a>
+                          <span className="w-px h-3 bg-neutral-200 dark:bg-neutral-600 mx-0.5" />
+                          <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-0.5 text-neutral-300 hover:text-amber-500 transition-colors" title="수정"><Pencil className="w-3 h-3" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); discardProject(p); }} className="p-0.5 text-neutral-300 hover:text-red-500 transition-colors" title="삭제"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       </div>
                     </div>
@@ -491,6 +496,70 @@ export default function ResearchPage() {
           {filtered.length === 0 && (
             <div className="text-center py-12 text-neutral-400 text-sm">해당 필터에 맞는 연구 프로젝트가 없습니다.</div>
           )}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditProject(null)}>
+          <div className="bg-white dark:bg-neutral-800 rounded-2xl shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-neutral-200 dark:border-neutral-700">
+              <h2 className="text-lg font-semibold">연구 프로젝트 수정</h2>
+              <button onClick={() => setEditProject(null)} className="p-1 hover:bg-neutral-100 dark:hover:bg-neutral-700 rounded-lg"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">프로젝트명</label>
+                <input value={editForm.label || ""} onChange={(e) => setEditForm({...editForm, label: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">상태</label>
+                <input value={editForm["상태"] || ""} onChange={(e) => setEditForm({...editForm, "상태": e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">오너</label>
+                  <input value={editForm["오너"] || ""} onChange={(e) => setEditForm({...editForm, "오너": e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">협업</label>
+                  <select value={editForm["협업"] || "personal"} onChange={(e) => setEditForm({...editForm, "협업": e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm">
+                    <option value="personal">Personal</option>
+                    <option value="collaboration">Collaboration</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">긴급도</label>
+                  <select value={editForm["긴급도"] || "low"} onChange={(e) => setEditForm({...editForm, "긴급도": e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm">
+                    <option value="low">Low</option><option value="medium">Medium</option>
+                    <option value="high">High</option><option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-neutral-500 mb-1">마감일</label>
+                  <input type="date" value={editForm["목표종료일"] || ""} onChange={(e) => setEditForm({...editForm, "목표종료일": e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-500 mb-1">관련 인원</label>
+                <input value={editForm.related_people || ""} onChange={(e) => setEditForm({...editForm, related_people: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-transparent text-sm" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-neutral-200 dark:border-neutral-700">
+              <button onClick={() => setEditProject(null)} className="px-4 py-2 rounded-lg text-sm text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-700">취소</button>
+              <button onClick={saveEdit} disabled={editSaving}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+                {editSaving ? "저장 중..." : "저장"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -563,18 +632,17 @@ export default function ResearchPage() {
                     });
                     if (data.success) {
                       const setup = data.auto_setup || {};
-                      const msgs = [
-                        `프로젝트 생성 완료!`,
-                        setup.github_created ? `GitHub repo 생성` : `GitHub repo 실패`,
-                        setup.git_pushed ? `코드 push 완료` : `코드 push 실패`,
-                        setup.pages_enabled ? `GitHub Pages 활성화` : `Pages 활성화 실패`,
-                        setup.gdrive_created ? `Google Drive 폴더 생성` : `Drive 폴더 실패`,
-                      ];
-                      alert(msgs.join("\n"));
+                      toast.success("프로젝트 생성 완료!", { duration: 4000 });
+                      if (setup.github_created) toast.success("GitHub repo 생성", { icon: "🐙" });
+                      else toast.error("GitHub repo 실패");
+                      if (setup.git_pushed) toast.success("코드 push 완료", { icon: "📤" });
+                      if (setup.pages_enabled) toast.success("GitHub Pages 활성화", { icon: "🌐" });
+                      if (setup.gdrive_created) toast.success("Google Drive 폴더 생성", { icon: "📁" });
+                      else toast.error("Drive 폴더 실패");
                       setShowCreate(false);
-                      window.location.reload();
-                    } else { alert(data.detail || data.message || "생성 실패"); }
-                  } catch { alert("서버 오류"); }
+                      loadData();
+                    } else { toast.error(data.detail || data.message || "생성 실패"); }
+                  } catch { toast.error("서버 오류"); }
                   setCreating(false);
                 }}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
