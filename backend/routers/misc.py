@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from services import auth_service, scanner_service
 from services import todo_service, issue_service, subtask_service, schedule_service, log_service
+from services.scanner_service import PROJECTS_ROOT
 from routers.deps import refresh_meta
 
 router = APIRouter(prefix="/api", tags=["misc"])
@@ -787,15 +788,28 @@ async def websocket_terminal(ws: WebSocket):
     except WebSocketDisconnect:
         return
 
-    project_path = config.get("project_path", os.path.expanduser("~"))
-    command = config.get("command", "/bin/zsh")
-
-    # Verify auth token from query params
+    # Verify auth token before doing anything else
     token = config.get("token", "")
     if not auth_service.verify_token(token):
         await ws.send_json({"type": "error", "data": "Unauthorized"})
         await ws.close()
         return
+
+    # Validate project_path: must be under PROJECTS_ROOT or user home
+    raw_path = config.get("project_path", "")
+    home_dir = Path(os.path.expanduser("~")).resolve()
+    if raw_path:
+        resolved = Path(raw_path).resolve()
+        if not (resolved.is_relative_to(PROJECTS_ROOT) or resolved.is_relative_to(home_dir)):
+            await ws.send_json({"type": "error", "data": "Invalid project path"})
+            await ws.close()
+            return
+        project_path = str(resolved)
+    else:
+        project_path = str(home_dir)
+
+    # command parameter is ignored — always launch /bin/zsh for safety
+    launch_cmd = config.get("command", "")
 
     # Fork a PTY
     child_pid, fd = pty.fork()
@@ -804,8 +818,8 @@ async def websocket_terminal(ws: WebSocket):
         # Child process
         os.chdir(project_path)
         os.environ["TERM"] = "xterm-256color"
-        if command:
-            os.execvp("/bin/zsh", ["/bin/zsh", "-l", "-c", command])
+        if launch_cmd:
+            os.execvp("/bin/zsh", ["/bin/zsh", "-l", "-c", launch_cmd])
         else:
             os.execvp("/bin/zsh", ["/bin/zsh", "-l"])
     else:

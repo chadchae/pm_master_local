@@ -12,22 +12,29 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 AUTH_FILE = DATA_DIR / "auth.json"
 TOKENS_FILE = DATA_DIR / "tokens.json"
 
-# Default password
-DEFAULT_PASSWORD = "admin"
-
 # Token expiry duration in seconds (24 hours)
 TOKEN_EXPIRY_SECONDS = 86400
 
 
 def _ensure_auth_file() -> None:
-    """Create auth.json with default hashed password if it doesn't exist."""
+    """Create auth.json with hashed password if it does not exist yet.
+
+    On first run, generates a random 16-character password and prints it
+    to stdout so the operator can log in.  After the first login, the
+    operator should change the password via the Settings page.
+    """
+    import logging
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     if not AUTH_FILE.exists():
-        hashed = bcrypt.hashpw(
-            DEFAULT_PASSWORD.encode("utf-8"), bcrypt.gensalt()
-        )
+        initial_password = secrets.token_urlsafe(12)
+        hashed = bcrypt.hashpw(initial_password.encode("utf-8"), bcrypt.gensalt())
         data = {"password_hash": hashed.decode("utf-8")}
         AUTH_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        logging.warning(
+            "=== FIRST RUN: initial admin password: %s  "
+            "(change this via Settings > Change Password) ===",
+            initial_password,
+        )
 
 
 def _load_auth_data() -> dict:
