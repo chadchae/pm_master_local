@@ -50,6 +50,8 @@ frontend/prisma/dev.db-journal
 backend/data/auth.json
 backend/data/tokens.json
 backend/data/card_order.json
+backend/data/github_sync_config.json
+backend/data/focus_tasks.json
 
 # Per-project runtime data (user data, not app code)
 backend/data/todos/
