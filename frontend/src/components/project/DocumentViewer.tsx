@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Suspense, lazy, useState, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { useTheme } from "next-themes";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { CsvViewer } from "./CsvViewer";
@@ -99,7 +100,7 @@ export function DocumentViewer({ selectedDoc, docContent, docBlobUrl, docHtml, s
     return (
       <div
         className="p-6 prose prose-sm dark:prose-invert max-w-none overflow-auto h-full"
-        dangerouslySetInnerHTML={{ __html: docHtml }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(docHtml) }}
       />
     );
   }
