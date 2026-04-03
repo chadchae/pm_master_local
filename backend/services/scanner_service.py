@@ -1,5 +1,6 @@
 """Project scanner service for discovering and managing projects."""
 
+import logging
 import os
 import re
 import shutil
@@ -319,7 +320,7 @@ def _scan_projects_uncached() -> list[dict[str, Any]]:
                 project["metadata"]["subtasks_total"] = str(counts.get("total", 0))
                 project["metadata"]["subtasks_done"] = str(counts.get("done", 0))
             except Exception:
-                pass
+                logging.debug("Failed to load subtask counts for project", exc_info=True)
 
             projects.append(project)
 

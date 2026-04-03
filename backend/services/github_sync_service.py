@@ -2,6 +2,7 @@
 
 import base64
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Optional
@@ -54,6 +55,7 @@ def load_config() -> dict:
     try:
         return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
     except Exception:
+        logging.warning("Failed to load github_sync_config, using defaults", exc_info=True)
         return _default_config()
 
 
@@ -81,6 +83,7 @@ def _get_remote_file(owner: str, repo: str, path: str, token: str, branch: str) 
             return r.json()
         return None
     except Exception:
+        logging.debug("_get_remote_file failed", exc_info=True)
         return None
 
 
@@ -95,6 +98,7 @@ def _list_remote_dir(owner: str, repo: str, path: str, token: str, branch: str) 
                 return [i for i in items if i.get("type") == "file"]
         return []
     except Exception:
+        logging.debug("_list_remote_dir failed", exc_info=True)
         return []
 
 

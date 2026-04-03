@@ -206,7 +206,7 @@ export default function ProjectsPage() {
                 stage: "2_initiation_stage",
               }),
             });
-            window.location.reload();
+            router.refresh();
           } catch (e) {
             toast.error(e instanceof Error ? e.message : "Failed");
           }

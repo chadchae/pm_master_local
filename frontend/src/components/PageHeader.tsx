@@ -89,7 +89,7 @@ export function PageHeader() {
       await apiFetch("/api/projects");
       await apiFetch("/api/people/sync-projects", { method: "POST" });
       toast.success("Scan complete");
-      window.location.reload();
+      router.refresh();
     } catch {
       toast.error("Scan failed");
     } finally {

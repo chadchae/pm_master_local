@@ -1,6 +1,7 @@
 """Project log service with per-project JSON file storage."""
 
 import json
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -70,7 +71,7 @@ def auto_log(project_name: str, log_type: str, title: str, description: str = ""
             "tags": ["auto"],
         })
     except Exception:
-        pass
+        logging.warning("auto_log failed silently", exc_info=True)
 
 
 def delete_log(project_name: str, log_id: str) -> bool:

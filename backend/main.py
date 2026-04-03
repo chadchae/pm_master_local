@@ -1,6 +1,8 @@
 """Project Manager Backend - FastAPI application."""
 
 import asyncio
+import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +11,25 @@ from fastapi.responses import JSONResponse
 from services import auth_service, github_sync_service
 from routers import auth, projects, documents, common, servers, people, misc, plans, sync
 
-app = FastAPI(title="Project Manager", version="1.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: pull from GitHub on startup if configured."""
+    cfg = github_sync_service.load_config()
+    if cfg.get("enabled") and cfg.get("auto_pull_on_start") and cfg.get("token"):
+        repo_name = cfg.get("repo_name", "")
+        if repo_name in github_sync_service.CODE_REPOS:
+            logging.warning(
+                "[sync] Skipping auto-pull: repo_name '%s' looks like a code repo. "
+                "Update repo_name to 'pm_master_sync' in Settings.", repo_name
+            )
+        else:
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(None, github_sync_service.pull_all)
+    yield
+
+
+app = FastAPI(title="Project Manager", version="1.1.0", lifespan=lifespan)
 
 _ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -70,22 +90,6 @@ async def auth_middleware(request: Request, call_next):
         )
 
     return await call_next(request)
-
-
-# --- Startup: auto-pull from GitHub if configured ---
-
-@app.on_event("startup")
-async def on_startup():
-    """Pull latest data from GitHub on app start if sync is enabled."""
-    cfg = github_sync_service.load_config()
-    if cfg.get("enabled") and cfg.get("auto_pull_on_start") and cfg.get("token"):
-        repo_name = cfg.get("repo_name", "")
-        if repo_name in github_sync_service.CODE_REPOS:
-            print(f"[sync] Skipping auto-pull: repo_name '{repo_name}' looks like a code repo. "
-                  "Update repo_name to 'pm_master_sync' in Settings.")
-            return
-        loop = asyncio.get_event_loop()
-        loop.run_in_executor(None, github_sync_service.pull_all)
 
 
 # --- Health ---

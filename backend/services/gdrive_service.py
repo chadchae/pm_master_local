@@ -1,7 +1,6 @@
 """Google Drive service for creating research project files (gdoc/gsheet)."""
 
 import json
-import sqlite3
 from pathlib import Path
 from typing import Any
 
